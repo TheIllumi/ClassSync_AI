@@ -160,7 +160,7 @@ S3_BUCKET=...
 
 ---
 
-## ▶ Running the System
+## Running the System
 
 ### **Run Backend API**
 
@@ -194,17 +194,17 @@ The AI Agent is powered by:
 
 The agent can:
 
-✔ Interpret natural language into constraints
+* Interpret natural language into constraints
 
-✔ Modify hard/soft constraints with confirmation
+* Modify hard/soft constraints with confirmation
 
-✔ Detect and fix dataset inconsistencies
+* Detect and fix dataset inconsistencies
 
-✔ Explain scheduling choices
+* Explain scheduling choices
 
-✔ Run what-if scenarios
+* Run what-if scenarios
 
-✔ Summarize timetable quality
+* Summarize timetable quality
 
 ---
 
