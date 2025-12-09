@@ -167,3 +167,157 @@ class ErrorResponse(BaseModel):
     """Error response."""
     error: str
     details: Optional[str] = None
+
+
+# ============================================================================
+# CONSTRAINT CONFIGURATION SCHEMAS
+# ============================================================================
+
+class HardConstraints(BaseModel):
+    """Hard constraints that must never be violated."""
+    no_teacher_overlap: bool = True
+    no_room_overlap: bool = True
+    no_section_overlap: bool = True
+    respect_timeslot_duration: bool = True
+    valid_timeslots_only: bool = True
+
+
+class SoftConstraintItem(BaseModel):
+    """Individual soft constraint with weight."""
+    enabled: bool = True
+    weight: int = Field(ge=1, le=10, default=5)
+    threshold: Optional[str] = None  # For time-based constraints like "09:00"
+
+
+class SoftConstraints(BaseModel):
+    """Soft constraints that are scored and weighted."""
+    minimize_early_morning: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=5, threshold="09:00"
+    )
+    minimize_late_evening: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=5, threshold="16:00"
+    )
+    minimize_teacher_gaps: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=8
+    )
+    compact_student_schedules: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=7
+    )
+    room_type_preference: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=6
+    )
+    teacher_time_preferences: SoftConstraintItem = SoftConstraintItem(
+        enabled=True, weight=9
+    )
+
+
+class OptionalConstraintItem(BaseModel):
+    """Individual optional constraint."""
+    enabled: bool = False
+    enforce: Optional[bool] = None  # Whether to enforce or just warn
+    time: Optional[str] = None  # For time-based constraints
+
+
+class OptionalConstraints(BaseModel):
+    """Optional constraints that can be toggled."""
+    check_room_capacity: OptionalConstraintItem = OptionalConstraintItem(
+        enabled=False, enforce=False
+    )
+    avoid_scheduling_after: OptionalConstraintItem = OptionalConstraintItem(
+        enabled=False, time="18:00"
+    )
+    group_labs_same_day: OptionalConstraintItem = OptionalConstraintItem(
+        enabled=False
+    )
+    avoid_building_changes: OptionalConstraintItem = OptionalConstraintItem(
+        enabled=False
+    )
+    minimize_fragmentation: OptionalConstraintItem = OptionalConstraintItem(
+        enabled=True
+    )
+
+
+class ConstraintConfigCreate(BaseModel):
+    """Schema for creating a new constraint configuration."""
+    name: str = Field(..., min_length=1, max_length=255)
+    is_default: bool = False
+
+    # Timeslot settings
+    timeslot_duration_minutes: int = Field(default=60, ge=30, le=240)
+    days_per_week: int = Field(default=5, ge=1, le=7)
+    start_time: str = Field(default="08:00", pattern=r"^\d{2}:\d{2}$")
+    end_time: str = Field(default="17:00", pattern=r"^\d{2}:\d{2}$")
+
+    # Constraints
+    hard_constraints: Optional[HardConstraints] = None
+    soft_constraints: Optional[SoftConstraints] = None
+    optional_constraints: Optional[OptionalConstraints] = None
+
+    # Optimization settings
+    max_optimization_time_seconds: int = Field(default=60, ge=10, le=300)
+    min_acceptable_score: float = Field(default=70.0, ge=0.0, le=100.0)
+
+
+class ConstraintConfigUpdate(BaseModel):
+    """Schema for updating an existing constraint configuration."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    is_active: Optional[bool] = None
+    is_default: Optional[bool] = None
+
+    # Timeslot settings
+    timeslot_duration_minutes: Optional[int] = Field(None, ge=30, le=240)
+    days_per_week: Optional[int] = Field(None, ge=1, le=7)
+    start_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    end_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+
+    # Constraints
+    hard_constraints: Optional[HardConstraints] = None
+    soft_constraints: Optional[SoftConstraints] = None
+    optional_constraints: Optional[OptionalConstraints] = None
+
+    # Optimization settings
+    max_optimization_time_seconds: Optional[int] = Field(None, ge=10, le=300)
+    min_acceptable_score: Optional[float] = Field(None, ge=0.0, le=100.0)
+
+
+class ConstraintConfigResponse(BaseModel):
+    """Schema for constraint configuration response."""
+    id: int
+    institution_id: int
+    name: str
+    is_active: bool
+    is_default: bool
+
+    # Timeslot settings
+    timeslot_duration_minutes: int
+    days_per_week: int
+    start_time: str
+    end_time: str
+
+    # Constraints - MAKE THESE OPTIONAL
+    hard_constraints: Optional[Dict[str, Any]] = None
+    soft_constraints: Optional[Dict[str, Any]] = None
+    optional_constraints: Optional[Dict[str, Any]] = None
+
+    # Optimization settings
+    max_optimization_time_seconds: int
+    min_acceptable_score: float
+
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConstraintConfigListItem(BaseModel):
+    """Schema for constraint configuration list item."""
+    id: int
+    name: str
+    is_active: bool
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

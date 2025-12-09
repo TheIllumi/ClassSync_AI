@@ -106,6 +106,7 @@ class Institution(Base, TimestampMixin, SoftDeleteMixin):
     sections = relationship("Section", back_populates="institution")
     datasets = relationship("Dataset", back_populates="institution")
     timetables = relationship("Timetable", back_populates="institution")
+    constraint_configs = relationship("ConstraintConfig", back_populates="institution")
 
 
 class User(Base, TimestampMixin, SoftDeleteMixin):
@@ -288,3 +289,56 @@ class TimetableEntry(Base, TimestampMixin):
     course = relationship("Course")
     teacher = relationship("Teacher", back_populates="timetable_entries")
     room = relationship("Room", back_populates="timetable_entries")
+
+
+class ConstraintConfig(Base, TimestampMixin):
+    """Constraint configuration for timetable generation."""
+    __tablename__ = "constraint_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey("institutions.id"), nullable=False, index=True)
+
+    name = Column(String(255), nullable=False)  # e.g., "Default Configuration", "Spring 2024"
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+
+    # Timeslot configuration
+    timeslot_duration_minutes = Column(Integer, default=60)  # 60, 90, or 120
+    days_per_week = Column(Integer, default=5)  # Usually 5 or 6
+    start_time = Column(String(10), default="08:00")  # e.g., "08:00"
+    end_time = Column(String(10), default="17:00")  # e.g., "17:00"
+
+    # Hard constraints (always enforced, stored as JSON for flexibility)
+    hard_constraints = Column(JSON, default={
+        "no_teacher_overlap": True,
+        "no_room_overlap": True,
+        "no_section_overlap": True,
+        "respect_timeslot_duration": True,
+        "valid_timeslots_only": True
+    })
+
+    # Soft constraints (scored/weighted, stored as JSON)
+    soft_constraints = Column(JSON, default={
+        "minimize_early_morning": {"enabled": True, "weight": 5, "threshold": "09:00"},
+        "minimize_late_evening": {"enabled": True, "weight": 5, "threshold": "16:00"},
+        "minimize_teacher_gaps": {"enabled": True, "weight": 8},
+        "compact_student_schedules": {"enabled": True, "weight": 7},
+        "room_type_preference": {"enabled": True, "weight": 6},
+        "teacher_time_preferences": {"enabled": True, "weight": 9}
+    })
+
+    # Optional constraints (toggleable)
+    optional_constraints = Column(JSON, default={
+        "check_room_capacity": {"enabled": False, "enforce": False},
+        "avoid_scheduling_after": {"enabled": False, "time": "18:00"},
+        "group_labs_same_day": {"enabled": False},
+        "avoid_building_changes": {"enabled": False},
+        "minimize_fragmentation": {"enabled": True}
+    })
+
+    # Optimization settings
+    max_optimization_time_seconds = Column(Integer, default=60)
+    min_acceptable_score = Column(Float, default=70.0)
+
+    # Relationships
+    institution = relationship("Institution", back_populates="constraint_configs")
