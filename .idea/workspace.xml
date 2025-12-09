@@ -1,28 +1,102 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="" />
+    <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/test_db_connection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/dependencies.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/dependencies.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/constraints.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/constraints.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/datasets.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/health.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/health.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_api.http" beforeDir="false" afterPath="$PROJECT_DIR$/test_api.http" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="HTTP Request" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HttpClientOnboardingState"><![CDATA[{
+  "isOnboardingCommentShown": true
+}]]></component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 4
 }]]></component>
   <component name="ProjectId" id="36ZgzeFyU8dvPWJQP8mhmwaOO4D" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "HTTP Request.test_api | GET request to example server.executor": "Run",
+    "HTTP Request.test_api | Test API status.executor": "Run",
+    "HTTP Request.test_api | Test health check.executor": "Run",
+    "HTTP Request.test_api | Test root endpoint.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.lookFeel",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RunDashboard">
+    <option name="configurationStatuses">
+      <map>
+        <entry key="HttpClient.HttpRequestRunConfigurationType">
+          <value>
+            <map>
+              <entry key="test_api | GET request to example server" value="STOPPED" />
+              <entry key="test_api | Test API status" value="STOPPED" />
+              <entry key="test_api | Test health check" value="STOPPED" />
+              <entry key="test_api | Test root endpoint" value="STOPPED" />
+            </map>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="RunManager" selected="HTTP Request.test_api | Test API status">
+    <configuration name="test_api | GET request to example server" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="GET request to example server" runType="Run single request">
+      <method v="2" />
+    </configuration>
+    <configuration name="test_api | Test API status" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="Test API status" index="4" runType="Run single request">
+      <method v="2" />
+    </configuration>
+    <configuration name="test_api | Test health check" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="Test health check" index="3" runType="Run single request">
+      <method v="2" />
+    </configuration>
+    <configuration name="test_api | Test root endpoint" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="Test root endpoint" index="2" runType="Run single request">
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="HTTP Request.test_api | Test API status" />
+        <item itemvalue="HTTP Request.test_api | Test health check" />
+        <item itemvalue="HTTP Request.test_api | Test root endpoint" />
+        <item itemvalue="HTTP Request.test_api | GET request to example server" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -38,7 +112,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1765219770557</updated>
-      <workItem from="1765219771597" duration="61000" />
+      <workItem from="1765219771597" duration="5074000" />
     </task>
     <servers />
   </component>

@@ -2,4 +2,11 @@
 GET https://examples.http-client.intellij.net/get
     ?generated-in=PyCharm
 
-###
+### Test root endpoint
+GET http://localhost:8000/
+
+### Test health check
+GET http://localhost:8000/health
+
+### Test API status
+GET http://localhost:8000/api/v1/status
