@@ -14,11 +14,11 @@ from pydantic import ValidationError
 class DatasetValidator:
     """Validates uploaded dataset files."""
 
-    # Required columns for each dataset type
+    # Required columns for each dataset type (normalized - lowercase with underscores)
     REQUIRED_COLUMNS = {
-        'courses': ['course_code', 'course_name', 'teacher_code'],
+        'courses': ['course_name', 'instructor', 'section', 'program', 'type', 'hours_per_week'],
         'teachers': ['teacher_code', 'teacher_name'],
-        'rooms': ['room_code'],
+        'rooms': ['rooms', 'type'],
         'sections': ['section_code', 'course_code', 'semester', 'year']
     }
 

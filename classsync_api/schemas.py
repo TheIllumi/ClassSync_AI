@@ -2,7 +2,7 @@
 Pydantic schemas for request/response validation.
 """
 
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -89,21 +89,32 @@ class DatasetValidationResult(BaseModel):
 # ============================================================================
 
 class CourseDataRow(BaseModel):
-    """Expected structure for course CSV/XLSX rows."""
-    course_code: str = Field(..., min_length=1, max_length=50)
-    course_name: str = Field(..., min_length=1, max_length=255)
-    teacher_code: str = Field(..., min_length=1, max_length=50)
-    course_type: str = Field(default="lecture")  # lecture, lab, tutorial
-    credit_hours: int = Field(default=3, ge=1, le=6)
-    duration_minutes: int = Field(default=60, ge=30, le=240)
-    sessions_per_week: int = Field(default=1, ge=1, le=7)
+    """Schema for course data validation."""
 
-    @validator('course_type')
-    def validate_course_type(cls, v):
-        valid_types = ['lecture', 'lab', 'tutorial']
-        if v.lower() not in valid_types:
-            raise ValueError(f"course_type must be one of: {', '.join(valid_types)}")
-        return v.lower()
+    course_name: str = Field(..., min_length=1, max_length=200)
+    course_code: Optional[str] = Field(None, max_length=50)
+    instructor: str = Field(..., min_length=1, max_length=100)
+    section: str = Field(..., min_length=1, max_length=50)
+    program: str = Field(..., min_length=1, max_length=100)
+    type: str = Field(..., pattern="^(Theory|Lab)$")
+    hours_per_week: int = Field(default=3, ge=1, le=10)
+    duration_minutes: Optional[int] = Field(None, ge=30, le=300)
+    sessions_per_week: Optional[int] = Field(None, ge=1, le=6)
+
+    @field_validator('course_code', mode='before')
+    @classmethod
+    def generate_course_code(cls, v, info):
+        """Auto-generate course code if not provided."""
+        if v is None or v == '':
+            # Generate from course_name
+            course_name = info.data.get('course_name', 'UNKNOWN')
+            # Take first letters and make uppercase
+            code = ''.join([word[0] for word in course_name.split()[:3]]).upper()
+            return f"{code}-{abs(hash(course_name)) % 1000:03d}"
+        return v
+
+    class Config:
+        populate_by_name = True
 
 
 # ============================================================================
@@ -123,20 +134,14 @@ class TeacherDataRow(BaseModel):
 # ============================================================================
 
 class RoomDataRow(BaseModel):
-    """Expected structure for room CSV/XLSX rows."""
-    room_code: str = Field(..., min_length=1, max_length=50)
-    room_name: Optional[str] = Field(None, max_length=255)
-    room_type: str = Field(default="lecture_hall")
-    capacity: int = Field(default=50, ge=1)
-    building: Optional[str] = Field(None, max_length=100)
-    floor: Optional[str] = Field(None, max_length=20)
+    """Schema for room data validation."""
 
-    @validator('room_type')
-    def validate_room_type(cls, v):
-        valid_types = ['lecture_hall', 'lab', 'tutorial_room', 'seminar_room']
-        if v.lower() not in valid_types:
-            raise ValueError(f"room_type must be one of: {', '.join(valid_types)}")
-        return v.lower()
+    rooms: str = Field(..., min_length=1, max_length=100)
+    type: str = Field(..., pattern="^(Lab|Theory)$", description="Must be 'Lab' or 'Theory'")
+    capacity: int = Field(default=50, ge=1, le=500)
+
+    class Config:
+        populate_by_name = True
 
 
 # ============================================================================
