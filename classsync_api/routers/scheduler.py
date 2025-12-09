@@ -13,6 +13,13 @@ from classsync_api.schemas import MessageResponse
 from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry
 from classsync_core.optimizer import TimetableOptimizer
 
+from fastapi.responses import FileResponse
+import tempfile
+import uuid
+
+from classsync_core.exports import ExportManager
+from classsync_core.exporters import XLSXExporter, CSVExporter, JSONExporter
+
 router = APIRouter(
     prefix="/scheduler",
     tags=["Scheduler"]
@@ -177,3 +184,155 @@ async def delete_timetable(
         message="Timetable deleted successfully",
         details={"timetable_id": timetable_id}
     )
+
+
+@router.get("/timetables/{timetable_id}/export")
+async def export_timetable(
+        timetable_id: int,
+        format: str = "xlsx",
+        view_type: str = "master",
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    Export timetable in specified format.
+
+    Args:
+        timetable_id: ID of timetable to export
+        format: Export format (xlsx, csv, json)
+        view_type: View type (master, section, teacher, room)
+
+    Returns:
+        File download
+    """
+    # Verify timetable exists and belongs to institution
+    timetable = db.query(Timetable).filter(
+        Timetable.id == timetable_id,
+        Timetable.institution_id == 1
+    ).first()
+
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+
+    # Validate format
+    if format not in ['xlsx', 'csv', 'json']:
+        raise HTTPException(status_code=400, detail="Invalid format. Use: xlsx, csv, or json")
+
+    # Validate view_type
+    if view_type not in ['master', 'section', 'teacher', 'room']:
+        raise HTTPException(status_code=400, detail="Invalid view_type. Use: master, section, teacher, or room")
+
+    # Create export manager
+    export_manager = ExportManager(db)
+    export_manager.register_exporter('xlsx', XLSXExporter(db))
+    export_manager.register_exporter('csv', CSVExporter(db))
+    export_manager.register_exporter('json', JSONExporter(db))
+
+    # Create temporary file
+    temp_dir = tempfile.gettempdir()
+    file_id = str(uuid.uuid4())
+
+    # Set file extension and media type
+    extensions = {'xlsx': 'xlsx', 'csv': 'csv', 'json': 'json'}
+    media_types = {
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'csv': 'text/csv',
+        'json': 'application/json'
+    }
+
+    file_name = f"timetable_{timetable_id}_{view_type}_{file_id}.{extensions[format]}"
+    output_path = f"{temp_dir}/{file_name}"
+
+    try:
+        # Export
+        exported_path = export_manager.export_timetable(
+            timetable_id=timetable_id,
+            format=format,
+            output_path=output_path,
+            view_type=view_type
+        )
+
+        # For CSV with view_type (multiple files), return first file or zip
+        if format == 'csv' and view_type != 'master':
+            # Returns directory path - we'll just return info for now
+            return {
+                "message": "Export completed",
+                "format": format,
+                "view_type": view_type,
+                "path": exported_path,
+                "note": "Multiple CSV files generated. Use individual file download."
+            }
+
+        # Return file
+        return FileResponse(
+            path=exported_path,
+            media_type=media_types[format],
+            filename=file_name,
+            headers={
+                "Content-Disposition": f"attachment; filename={file_name}"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.get("/timetables/{timetable_id}/export/formats")
+async def get_available_export_formats(
+        timetable_id: int,
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    Get available export formats for a timetable.
+
+    Returns:
+        List of available formats and view types
+    """
+    # Verify timetable exists
+    timetable = db.query(Timetable).filter(
+        Timetable.id == timetable_id,
+        Timetable.institution_id == 1
+    ).first()
+
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+
+    return {
+        "timetable_id": timetable_id,
+        "available_formats": [
+            {
+                "format": "xlsx",
+                "description": "Excel format with styling",
+                "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            },
+            {
+                "format": "csv",
+                "description": "Comma-separated values",
+                "media_type": "text/csv"
+            },
+            {
+                "format": "json",
+                "description": "JSON format for APIs",
+                "media_type": "application/json"
+            }
+        ],
+        "available_views": [
+            {
+                "view_type": "master",
+                "description": "Complete timetable in single file"
+            },
+            {
+                "view_type": "section",
+                "description": "Separate sheet/file for each section"
+            },
+            {
+                "view_type": "teacher",
+                "description": "Separate sheet/file for each teacher"
+            },
+            {
+                "view_type": "room",
+                "description": "Separate sheet/file for each room"
+            }
+        ]
+    }
