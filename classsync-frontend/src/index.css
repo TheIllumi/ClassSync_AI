@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 🌸 Warm Pastel Palette — 2025/2026 Trend */
+
+    /* Base & Text */
+    --background: 35 60% 98%;        /* Cream White */
+    --foreground: 20 30% 25%;        /* Deep Mocha Text */
+
+    /* Card / Popover */
+    --card: 0 0% 100%;               /* White */
+    --card-foreground: 20 30% 25%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 30% 25%;
+
+    /* Primary — Peach Fuzz (Pantone 2024 influence continues) */
+    --primary: 20 85% 83%;           /* Soft Peach */
+    --primary-foreground: 15 30% 20%;
+
+    /* Secondary — Buttercream */
+    --secondary: 45 90% 85%;         /* Warm Yellow Cream */
+    --secondary-foreground: 20 30% 25%;
+
+    /* Muted — Sand Beige */
+    --muted: 30 25% 90%;             /* Subtle Beige */
+    --muted-foreground: 20 15% 45%;
+
+    /* Accent — Rose Dust */
+    --accent: 350 55% 80%;           /* Muted Pink */
+    --accent-foreground: 20 30% 25%;
+
+    /* Destructive — Terracotta Red */
+    --destructive: 10 70% 75%;       /* Warm Clay Red */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders / Inputs */
+    --border: 25 25% 80%;
+    --input: 30 25% 88%;
+    --ring: 20 85% 83%;
+
+    /* Radius */
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* 🌙 Warm Pastel Dark Mode */
+    --background: 25 25% 12%;        /* Deep Brownish Gray */
+    --foreground: 35 30% 95%;        /* Light Cream Text */
+
+    --card: 25 25% 18%;
+    --card-foreground: 35 30% 95%;
+
+    --popover: 25 25% 18%;
+    --popover-foreground: 35 30% 95%;
+
+    --primary: 20 85% 75%;           /* Warm Peach */
+    --primary-foreground: 25 25% 12%;
+
+    --secondary: 45 90% 70%;         /* Soft Butter */
+    --secondary-foreground: 25 25% 12%;
+
+    --muted: 30 20% 25%;
+    --muted-foreground: 35 25% 70%;
+
+    --accent: 350 55% 70%;           /* Rose Clay */
+    --accent-foreground: 35 30% 95%;
+
+    --destructive: 10 70% 65%;       /* Terracotta */
+    --destructive-foreground: 35 30% 95%;
+
+    --border: 30 20% 28%;
+    --input: 30 20% 28%;
+    --ring: 20 85% 75%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

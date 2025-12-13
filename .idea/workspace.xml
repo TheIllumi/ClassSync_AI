@@ -2,15 +2,43 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/test_db_connection.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/dependencies.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/dependencies.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/routers/constraints.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/constraints.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/postcss.config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/dashboard/StatsCard.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/layout/Header.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/layout/MainLayout.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/layout/Sidebar.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/ui/button.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/ui/card.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/components/upload/FileUpload.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Dashboard.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Settings.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Upload.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/src/types/index.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync-frontend/tailwind.config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/enhanced_placement.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/importers/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/importers/base_importer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/importers/room_importer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/chromosome.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/fitness_evaluator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/ga_engine.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/initializer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/operators.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/classsync_core/scheduler/repair.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/reset_database.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/verify_empty.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync_api/routers/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/datasets.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/routers/health.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/health.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_api.http" beforeDir="false" afterPath="$PROJECT_DIR$/test_api.http" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/constraints.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,18 +50,21 @@
       <list>
         <option value="HTTP Request" />
         <option value="Python Script" />
+        <option value="JavaScript File" />
+        <option value="TypeScript File" />
+        <option value="TypeScript JSX File" />
       </list>
     </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="HttpClientOnboardingState"><![CDATA[{
-  "isOnboardingCommentShown": true
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 4
-}]]></component>
+  <component name="HttpClientOnboardingState">{
+  &quot;isOnboardingCommentShown&quot;: true
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
   <component name="ProjectId" id="36ZgzeFyU8dvPWJQP8mhmwaOO4D" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
@@ -42,39 +73,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "HTTP Request.test_api | GET request to example server.executor": "Run",
-    "HTTP Request.test_api | Test API status.executor": "Run",
-    "HTTP Request.test_api | Test health check.executor": "Run",
-    "HTTP Request.test_api | Test root endpoint.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.lookFeel",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;HTTP Request.test_api | GET request to example server.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test API status.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test health check.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test root endpoint.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/GitHub/ClassSync_AI&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;D:\\GitHub\\ClassSync_AI\\classsync-frontend\\node_modules\\typescript\\lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
-  <component name="RunDashboard">
-    <option name="configurationStatuses">
-      <map>
-        <entry key="HttpClient.HttpRequestRunConfigurationType">
-          <value>
-            <map>
-              <entry key="test_api | GET request to example server" value="STOPPED" />
-              <entry key="test_api | Test API status" value="STOPPED" />
-              <entry key="test_api | Test health check" value="STOPPED" />
-              <entry key="test_api | Test root endpoint" value="STOPPED" />
-            </map>
-          </value>
-        </entry>
-      </map>
-    </option>
-  </component>
+}</component>
   <component name="RunManager" selected="HTTP Request.test_api | Test API status">
     <configuration name="test_api | GET request to example server" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="GET request to example server" runType="Run single request">
       <method v="2" />
@@ -90,9 +109,9 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="HTTP Request.test_api | Test API status" />
-        <item itemvalue="HTTP Request.test_api | Test health check" />
         <item itemvalue="HTTP Request.test_api | Test root endpoint" />
+        <item itemvalue="HTTP Request.test_api | Test health check" />
+        <item itemvalue="HTTP Request.test_api | Test API status" />
         <item itemvalue="HTTP Request.test_api | GET request to example server" />
       </list>
     </recent_temporary>
@@ -100,8 +119,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PY-253.28294.336" />
-        <option value="bundled-python-sdk-0978a7220b69-9867c7d4c0a4-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.28294.336" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-WS-253.28294.332" />
       </set>
     </attachedChunks>
   </component>
@@ -113,6 +131,10 @@
       <option name="presentableId" value="Default" />
       <updated>1765219770557</updated>
       <workItem from="1765219771597" duration="5074000" />
+      <workItem from="1765279988684" duration="18435000" />
+      <workItem from="1765487447333" duration="560000" />
+      <workItem from="1765553396854" duration="11039000" />
+      <workItem from="1765614711730" duration="3436000" />
     </task>
     <servers />
   </component>

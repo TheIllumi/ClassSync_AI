@@ -4,7 +4,7 @@ Dataset upload and management endpoints.
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Any
 import tempfile
 import os
 
@@ -12,19 +12,20 @@ from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id, get_current_user
 from classsync_api.schemas import (
     DatasetUploadResponse, DatasetListItem, MessageResponse,
-    DatasetValidationResult, DatasetTypeSchema, DatasetStatusSchema
+    DatasetValidationResult, DatasetTypeSchema, DatasetStatusSchema, DatasetImportStats, DatasetUploadWithImportResponse
 )
 from classsync_core.models import Dataset, User
 from classsync_core.storage import s3_service
 from classsync_core.validators import DatasetValidator
 from classsync_core.models import DatasetStatus
+from classsync_core.importers import CourseImporter, RoomImporter
 
 router = APIRouter(
     prefix="/datasets",
     tags=["Datasets"]
 )
 
-@router.post("/upload", response_model=DatasetUploadResponse)
+@router.post("/upload", response_model=DatasetUploadWithImportResponse)
 async def upload_dataset(
         file: UploadFile = File(...),
         dataset_type: DatasetTypeSchema = Query(...,
@@ -54,6 +55,9 @@ async def upload_dataset(
             status_code=400,
             detail="Invalid file type. Only CSV and XLSX files are accepted."
         )
+
+    # Get file extension for database
+    file_extension = os.path.splitext(file.filename)[1].lower()
 
     # Read file content
     try:
@@ -98,10 +102,10 @@ async def upload_dataset(
         dataset = Dataset(
             institution_id=1,
             filename=file.filename,
-            file_type=file_ext,
+            file_type=file_extension,
             s3_key=s3_key,
-            status=status_value,  # Pass the lowercase string directly
-            validation_errors=validation_result.model_dump() if not validation_result.is_valid else None,
+            status="VALIDATED" if validation_result.is_valid else "INVALID",
+            validation_errors=validation_result.model_dump_json() if not validation_result.is_valid else None,
             row_count=validation_result.total_rows,
             uploaded_by=1
         )
@@ -110,17 +114,32 @@ async def upload_dataset(
         db.commit()
         db.refresh(dataset)
 
-        return DatasetUploadResponse(
+        # Import to database if validation passed
+        import_result = None
+        if validation_result.is_valid:
+            import_result = _import_dataset_to_db(
+                temp_file_path, dataset_type, db
+            )
+
+        return DatasetUploadWithImportResponse(
             id=dataset.id,
             filename=dataset.filename,
             file_type=dataset.file_type,
             status=DatasetStatusSchema(dataset.status),
             s3_key=dataset.s3_key,
             row_count=dataset.row_count,
-            validation_errors=dataset.validation_errors,
-            created_at=dataset.created_at
+            created_at=dataset.created_at,
+            message="Dataset uploaded and imported successfully" if validation_result.is_valid else "Dataset validation failed",
+            validation={
+                "is_valid": validation_result.is_valid,
+                "total_rows": validation_result.total_rows,
+                "valid_rows": validation_result.valid_rows,
+                "invalid_rows": validation_result.invalid_rows,
+                "errors": [error.model_dump() for error in validation_result.errors],
+                "warnings": validation_result.warnings
+            },
+            import_stats=DatasetImportStats(**import_result.to_dict()) if import_result else None
         )
-
     except HTTPException:
         raise
     except Exception as e:
@@ -272,3 +291,38 @@ async def download_dataset(
         "download_url": download_url,
         "expires_in_seconds": 3600
     }
+
+
+def _import_dataset_to_db(file_path: str, dataset_type: DatasetTypeSchema, db: Session) -> Any:
+    """
+    Import validated dataset into database.
+
+    Args:
+        file_path: Path to the validated CSV file
+        dataset_type: Type of dataset (courses, rooms, etc.)
+        db: Database session
+
+    Returns:
+        ImportResult with statistics
+    """
+    import pandas as pd
+
+    # Read the file
+    if file_path.endswith('.csv'):
+        df = pd.read_csv(file_path)
+    else:
+        df = pd.read_excel(file_path)
+
+    # Select appropriate importer - use .value to get string from enum
+    if dataset_type.value == 'courses':
+        importer = CourseImporter(db, institution_id=1)
+        return importer.import_from_dataframe(df)
+    elif dataset_type.value == 'rooms':
+        importer = RoomImporter(db, institution_id=1)
+        return importer.import_from_dataframe(df)
+    else:
+        # For other types, return empty result for now
+        from classsync_core.importers.base_importer import ImportResult
+        result = ImportResult()
+        result.errors.append(f"Import not implemented for {dataset_type.value}")
+        return result

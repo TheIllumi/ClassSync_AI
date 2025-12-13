@@ -1,0 +1,30 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MainLayout } from './components/layout/MainLayout'
+import { Dashboard } from './pages/Dashboard'
+import { Upload } from './pages/Upload'
+import { Timetables } from './pages/Timetables'
+import { TimetableView } from './pages/TimetableView'
+import { Settings } from './pages/Settings'
+
+const queryClient = new QueryClient()
+
+function App() {
+    return (
+        <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/" element={<MainLayout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="upload" element={<Upload />} />
+                        <Route path="timetables" element={<Timetables />} />
+                        <Route path="timetables/:id" element={<TimetableView />} />
+                        <Route path="settings" element={<Settings />} />
+                    </Route>
+                </Routes>
+            </BrowserRouter>
+        </QueryClientProvider>
+    )
+}
+
+export default App

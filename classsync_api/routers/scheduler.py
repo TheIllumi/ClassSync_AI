@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 
 from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id
@@ -28,30 +29,21 @@ router = APIRouter(
 
 @router.post("/generate")
 async def generate_timetable(
-    constraint_config_id: Optional[int] = None,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db: Session = Depends(get_db),
-    institution_id: str = Depends(get_institution_id)
+        constraint_config_id: Optional[int] = None,
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
 ):
     """
-    Generate a new timetable.
+    Generate an optimized timetable using genetic algorithm.
 
     Args:
-        constraint_config_id: ID of constraint configuration to use (uses default if not provided)
-
-    Returns:
-        Job information with timetable_id once generation starts
+        constraint_config_id: Optional constraint configuration to use
     """
-
     # Get constraint config
     if constraint_config_id:
-        config = db.query(ConstraintConfig).filter(
-            ConstraintConfig.id == constraint_config_id,
-            ConstraintConfig.institution_id == 1
-        ).first()
-
+        config = db.query(ConstraintConfig).get(constraint_config_id)
         if not config:
-            raise HTTPException(status_code=404, detail="Constraint configuration not found")
+            raise HTTPException(status_code=404, detail="Constraint config not found")
     else:
         # Use default config
         config = db.query(ConstraintConfig).filter(
@@ -60,30 +52,31 @@ async def generate_timetable(
         ).first()
 
         if not config:
-            raise HTTPException(status_code=404, detail="No default constraint configuration found")
+            raise HTTPException(status_code=404, detail="No default constraint config found")
 
     # Initialize optimizer
     optimizer = TimetableOptimizer(config)
 
-    # Generate timetable (synchronous for now, will be async in Phase 5B)
-    result = optimizer.generate_timetable(
-        db=db,
-        institution_id=1,
-        population_size=30,
-        generations=100
-    )
+    # Generate timetable
+    try:
+        result = optimizer.generate_timetable(
+            db=db,
+            institution_id=1,
+            population_size=30,
+            generations=100
+        )
 
-    if not result['success']:
-        raise HTTPException(status_code=500, detail=result.get('error', 'Generation failed'))
+        return {
+            "message": "Timetable generated successfully",
+            "timetable_id": result['timetable_id'],
+            "generation_time": result['generation_time'],
+            "sessions_scheduled": result['sessions_scheduled'],
+            "sessions_total": result['sessions_total'],
+            "fitness_score": result['fitness_score']
+        }
 
-    return {
-        "message": "Timetable generated successfully",
-        "timetable_id": result['timetable_id'],
-        "generation_time": result['generation_time'],
-        "sessions_scheduled": result['sessions_scheduled'],
-        "sessions_total": result['sessions_total'],
-        "fitness_score": result['fitness_score']
-    }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
 @router.get("/timetables")
@@ -116,12 +109,11 @@ async def list_timetables(
 
 @router.get("/timetables/{timetable_id}")
 async def get_timetable(
-    timetable_id: int,
-    db: Session = Depends(get_db),
-    institution_id: str = Depends(get_institution_id)
+        timetable_id: int,
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
 ):
-    """Get details of a specific timetable."""
-
+    """Get a specific timetable with all entries."""
     timetable = db.query(Timetable).filter(
         Timetable.id == timetable_id,
         Timetable.institution_id == 1
@@ -130,12 +122,18 @@ async def get_timetable(
     if not timetable:
         raise HTTPException(status_code=404, detail="Timetable not found")
 
-    # Get entries
+    # Load entries with relationships
     entries = db.query(TimetableEntry).filter(
         TimetableEntry.timetable_id == timetable_id
+    ).options(
+        joinedload(TimetableEntry.course),
+        joinedload(TimetableEntry.teacher),
+        joinedload(TimetableEntry.room),
+        joinedload(TimetableEntry.section)
     ).all()
 
-    return {
+    # Convert to dict with relationships
+    timetable_dict = {
         "id": timetable.id,
         "name": timetable.name,
         "semester": timetable.semester,
@@ -144,21 +142,38 @@ async def get_timetable(
         "generation_time_seconds": timetable.generation_time_seconds,
         "constraint_score": timetable.constraint_score,
         "conflict_count": timetable.conflict_count,
-        "created_at": timetable.created_at,
-        "entry_count": len(entries),
+        "created_at": timetable.created_at.isoformat(),
         "entries": [
             {
-                "day_of_week": e.day_of_week,
-                "start_time": e.start_time,
-                "end_time": e.end_time,
-                "section_id": e.section_id,
-                "course_id": e.course_id,
-                "teacher_id": e.teacher_id,
-                "room_id": e.room_id
+                "id": entry.id,
+                "day_of_week": entry.day_of_week,
+                "start_time": entry.start_time,
+                "end_time": entry.end_time,
+                "course": {
+                    "id": entry.course.id,
+                    "name": entry.course.name,
+                    "code": entry.course.code
+                } if entry.course else None,
+                "teacher": {
+                    "id": entry.teacher.id,
+                    "name": entry.teacher.name
+                } if entry.teacher else None,
+                "room": {
+                    "id": entry.room.id,
+                    "code": entry.room.code,
+                    "name": entry.room.name
+                } if entry.room else None,
+                "section": {
+                    "id": entry.section.id,
+                    "code": entry.section.code,
+                    "name": entry.section.name
+                } if entry.section else None
             }
-            for e in entries[:100]  # Limit for performance
+            for entry in entries
         ]
     }
+
+    return timetable_dict
 
 
 @router.delete("/timetables/{timetable_id}", response_model=MessageResponse)

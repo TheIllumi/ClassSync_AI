@@ -3,7 +3,7 @@ Utility functions for timetable optimization.
 """
 
 from datetime import datetime, time, timedelta
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Union
 
 
 def parse_time(time_str: str) -> time:
@@ -12,8 +12,10 @@ def parse_time(time_str: str) -> time:
     return time(h, m)
 
 
-def time_to_minutes(t: time) -> int:
+def time_to_minutes(t: Union[time, str]) -> int:
     """Convert time to minutes since midnight."""
+    if isinstance(t, str):
+        t = parse_time(t)
     return t.hour * 60 + t.minute
 
 

@@ -51,6 +51,33 @@ class DatasetUploadResponse(BaseModel):
         from_attributes = True
 
 
+class DatasetImportStats(BaseModel):
+    """Statistics from dataset import."""
+    created: int
+    updated: int
+    skipped: int
+    total_processed: int
+    errors: List[str]
+    created_ids: List[int]
+
+
+class DatasetUploadWithImportResponse(BaseModel):
+    """Response for dataset upload with import statistics."""
+    id: int
+    filename: str
+    file_type: str
+    status: DatasetStatusSchema
+    s3_key: str
+    row_count: int
+    created_at: datetime
+    message: str
+    validation: Dict[str, Any]
+    import_stats: Optional[DatasetImportStats] = None
+
+    class Config:
+        from_attributes = True
+
+
 class DatasetListItem(BaseModel):
     """Dataset item in list view."""
     id: int
