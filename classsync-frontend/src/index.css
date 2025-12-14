@@ -4,77 +4,76 @@
 
 @layer base {
   :root {
-    /* 🌸 Warm Pastel Palette — 2025/2026 Trend */
+    /* 🎨 Art-of-Hiring Inspired: Tan + Coral + Warm Yellow + Soft Pink */
 
-    /* Base & Text */
-    --background: 35 60% 98%;        /* Cream White */
-    --foreground: 20 30% 25%;        /* Deep Mocha Text */
+    /* Base */
+    --background: 45 100% 92%;          /* #fff5d7 (Ragin Beige) */
+    --foreground: 330 20% 18%;          /* deep plum-ish text (matches reference vibe) */
 
-    /* Card / Popover */
-    --card: 0 0% 100%;               /* White */
-    --card-foreground: 20 30% 25%;
+    /* Surfaces */
+    --card: 0 0% 100%;                  /* clean white cards */
+    --card-foreground: 330 20% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 30% 25%;
+    --popover-foreground: 330 20% 18%;
 
-    /* Primary — Peach Fuzz (Pantone 2024 influence continues) */
-    --primary: 20 85% 83%;           /* Soft Peach */
-    --primary-foreground: 15 30% 20%;
+    /* Brand / Actions */
+    --primary: 355 100% 68%;            /* #ff5e6c (Coral Pink) */
+    --primary-foreground: 0 0% 100%;    /* white */
 
-    /* Secondary — Buttercream */
-    --secondary: 45 90% 85%;         /* Warm Yellow Cream */
-    --secondary-foreground: 20 30% 25%;
+    /* Secondary */
+    --secondary: 42 100% 50%;           /* #feb300 (Sleuthe Yellow) */
+    --secondary-foreground: 330 20% 18%;
 
-    /* Muted — Sand Beige */
-    --muted: 30 25% 90%;             /* Subtle Beige */
-    --muted-foreground: 20 15% 45%;
+    /* Muted UI */
+    --muted: 45 70% 96%;                /* softer beige surface */
+    --muted-foreground: 330 10% 38%;
 
-    /* Accent — Rose Dust */
-    --accent: 350 55% 80%;           /* Muted Pink */
-    --accent-foreground: 20 30% 25%;
+    /* Accent */
+    --accent: 359 100% 83%;             /* #ffaaab (Pink Leaf) */
+    --accent-foreground: 330 20% 18%;
 
-    /* Destructive — Terracotta Red */
-    --destructive: 10 70% 75%;       /* Warm Clay Red */
+    /* Destructive */
+    --destructive: 0 85% 60%;           /* warmer red (still consistent) */
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders / Inputs */
-    --border: 25 25% 80%;
-    --input: 30 25% 88%;
-    --ring: 20 85% 83%;
+    /* Borders / Inputs / Focus Ring */
+    --border: 30 35% 82%;               /* warm tan border */
+    --input: 30 40% 90%;                /* soft warm input bg */
+    --ring: 355 100% 68%;               /* coral focus ring */
 
-    /* Radius */
     --radius: 0.75rem;
   }
 
   .dark {
-    /* 🌙 Warm Pastel Dark Mode */
-    --background: 25 25% 12%;        /* Deep Brownish Gray */
-    --foreground: 35 30% 95%;        /* Light Cream Text */
+    /* 🌙 Dark mode that still keeps the warm palette */
+    --background: 330 18% 12%;          /* deep plum-brown */
+    --foreground: 45 60% 95%;           /* creamy text */
 
-    --card: 25 25% 18%;
-    --card-foreground: 35 30% 95%;
+    --card: 330 18% 16%;
+    --card-foreground: 45 60% 95%;
 
-    --popover: 25 25% 18%;
-    --popover-foreground: 35 30% 95%;
+    --popover: 330 18% 16%;
+    --popover-foreground: 45 60% 95%;
 
-    --primary: 20 85% 75%;           /* Warm Peach */
-    --primary-foreground: 25 25% 12%;
+    --primary: 355 90% 70%;             /* softened coral */
+    --primary-foreground: 330 18% 12%;
 
-    --secondary: 45 90% 70%;         /* Soft Butter */
-    --secondary-foreground: 25 25% 12%;
+    --secondary: 42 95% 60%;            /* softened yellow */
+    --secondary-foreground: 330 18% 12%;
 
-    --muted: 30 20% 25%;
-    --muted-foreground: 35 25% 70%;
+    --muted: 330 12% 22%;
+    --muted-foreground: 45 20% 72%;
 
-    --accent: 350 55% 70%;           /* Rose Clay */
-    --accent-foreground: 35 30% 95%;
+    --accent: 359 85% 76%;              /* softened pink leaf */
+    --accent-foreground: 45 60% 95%;
 
-    --destructive: 10 70% 65%;       /* Terracotta */
-    --destructive-foreground: 35 30% 95%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 45 60% 95%;
 
-    --border: 30 20% 28%;
-    --input: 30 20% 28%;
-    --ring: 20 85% 75%;
+    --border: 330 10% 26%;
+    --input: 330 10% 26%;
+    --ring: 355 90% 70%;
   }
 }
 

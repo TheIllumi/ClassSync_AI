@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
-import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, CheckCircle, AlertCircle, LibraryBig, School } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface FileUploadProps {
@@ -50,7 +50,6 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
     const handleUpload = () => {
         if (selectedFile) {
             onUpload(selectedFile, datasetType)
-            // Don't clear the file immediately - let the parent handle success
         }
     }
 
@@ -60,26 +59,6 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
 
     return (
         <div className="space-y-6">
-            {/* Dataset Type Selection */}
-            <div className="flex gap-4">
-                <Button
-                    variant={datasetType === 'courses' ? 'default' : 'outline'}
-                    onClick={() => setDatasetType('courses')}
-                    className="flex-1"
-                    disabled={isUploading}
-                >
-                    📚 Courses Dataset
-                </Button>
-                <Button
-                    variant={datasetType === 'rooms' ? 'default' : 'outline'}
-                    onClick={() => setDatasetType('rooms')}
-                    className="flex-1"
-                    disabled={isUploading}
-                >
-                    🏫 Rooms Dataset
-                </Button>
-            </div>
-
             {/* Drop Zone */}
             <Card
                 className={cn(
@@ -100,7 +79,7 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
                                 Drop your CSV file here
                             </p>
                             <p className="text-sm text-muted-foreground mb-4">
-                                or click to browse
+                                Supports Course and Room datasets
                             </p>
                             <Button
                                 variant="secondary"
@@ -111,12 +90,13 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
                             </Button>
                         </>
                     ) : (
-                        <div className="w-full max-w-md">
-                            <div className="flex items-center justify-between p-4 bg-background rounded-lg">
+                        <div className="w-full max-w-md space-y-4">
+                            {/* File Info */}
+                            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
                                 <div className="flex items-center gap-3">
                                     <FileText className="h-8 w-8 text-primary" />
                                     <div>
-                                        <p className="font-medium">{selectedFile.name}</p>
+                                        <p className="font-medium truncate max-w-[200px]">{selectedFile.name}</p>
                                         <p className="text-sm text-muted-foreground">
                                             {(selectedFile.size / 1024).toFixed(2)} KB
                                         </p>
@@ -132,8 +112,33 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
                                 </Button>
                             </div>
 
+                            {/* Type Selection */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Dataset Type</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                        variant={datasetType === 'courses' ? 'default' : 'outline'}
+                                        onClick={() => setDatasetType('courses')}
+                                        disabled={isUploading}
+                                        className="h-auto py-3 flex flex-col gap-1"
+                                    >
+                                        <LibraryBig className="h-6 w-6 mb-1" />
+                                        <span>Courses</span>
+                                    </Button>
+                                    <Button
+                                        variant={datasetType === 'rooms' ? 'default' : 'outline'}
+                                        onClick={() => setDatasetType('rooms')}
+                                        disabled={isUploading}
+                                        className="h-auto py-3 flex flex-col gap-1"
+                                    >
+                                        <School className="h-6 w-6 mb-1" />
+                                        <span>Rooms</span>
+                                    </Button>
+                                </div>
+                            </div>
+
                             <Button
-                                className="w-full mt-4"
+                                className="w-full"
                                 onClick={handleUpload}
                                 disabled={isUploading}
                             >
@@ -144,42 +149,57 @@ export function FileUpload({ onUpload, isUploading }: FileUploadProps) {
                 </CardContent>
             </Card>
 
-            {/* Requirements */}
+            {/* Requirements Guide */}
             <Card>
-                <CardContent className="pt-6">
-                    <h3 className="font-semibold mb-3">CSV Format Requirements</h3>
+                <CardHeader>
+                    <CardTitle className="text-lg">CSV Format Requirements</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Courses Requirements */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 font-medium text-primary">
+                                <LibraryBig className="h-5 w-5" />
+                                <h3>Courses Dataset</h3>
+                            </div>
+                            <div className="space-y-2 text-sm text-muted-foreground">
+                                <p className="flex items-start gap-2">
+                                    <CheckCircle className="h-4 w-4 text-accent mt-0.5 shrink-0" />
+                                    <span>Required: course_name, instructor, section, program, type, hours_per_week</span>
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <CheckCircle className="h-4 w-4 text-accent mt-0.5 shrink-0" />
+                                    <span>Type: "Lab" or "Theory"</span>
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                    <span>Optional: course_code, capacity (default: 50)</span>
+                                </p>
+                            </div>
+                        </div>
 
-                    {datasetType === 'courses' ? (
-                        <div className="space-y-2 text-sm">
-                            <p className="flex items-start gap-2">
-                                <CheckCircle className="h-4 w-4 text-accent mt-0.5" />
-                                <span>Required columns: course_name, instructor, section, program, type, hours_per_week</span>
-                            </p>
-                            <p className="flex items-start gap-2">
-                                <CheckCircle className="h-4 w-4 text-accent mt-0.5" />
-                                <span>Type: "Lab" or "Theory"</span>
-                            </p>
-                            <p className="flex items-start gap-2">
-                                <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>Optional: course_code, capacity (defaults: auto-generated, 50)</span>
-                            </p>
+                        {/* Rooms Requirements */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 font-medium text-primary">
+                                <School className="h-5 w-5" />
+                                <h3>Rooms Dataset</h3>
+                            </div>
+                            <div className="space-y-2 text-sm text-muted-foreground">
+                                <p className="flex items-start gap-2">
+                                    <CheckCircle className="h-4 w-4 text-accent mt-0.5 shrink-0" />
+                                    <span>Required: rooms, type</span>
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <CheckCircle className="h-4 w-4 text-accent mt-0.5 shrink-0" />
+                                    <span>Type: "Lab" or "Theory"</span>
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                    <span>Optional: capacity (default: 50)</span>
+                                </p>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="space-y-2 text-sm">
-                            <p className="flex items-start gap-2">
-                                <CheckCircle className="h-4 w-4 text-accent mt-0.5" />
-                                <span>Required columns: rooms, type</span>
-                            </p>
-                            <p className="flex items-start gap-2">
-                                <CheckCircle className="h-4 w-4 text-accent mt-0.5" />
-                                <span>Type: "Lab" or "Theory"</span>
-                            </p>
-                            <p className="flex items-start gap-2">
-                                <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>Optional: capacity (default: 50)</span>
-                            </p>
-                        </div>
-                    )}
+                    </div>
                 </CardContent>
             </Card>
         </div>

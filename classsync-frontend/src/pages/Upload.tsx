@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { datasetsApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
-import { Trash2, CheckCircle, XCircle, FileInput } from 'lucide-react'
+import { Trash2, CheckCircle, XCircle, LibraryBig, School } from 'lucide-react'
 
 export function Upload() {
     const queryClient = useQueryClient()
@@ -104,9 +104,9 @@ export function Upload() {
                                         <div className="flex items-center gap-3">
                       <span className="text-2xl">
                         {dataset.dataset_type === 'courses' ? (
-                            <span className="text-xl">📚</span>
+                            <LibraryBig className="h-6 w-6 text-primary" />
                         ) : (
-                            <FileInput className="h-5 w-5 text-muted-foreground" />
+                            <School className="h-6 w-6 text-primary" />
                         )}
                       </span>
                                             <div>

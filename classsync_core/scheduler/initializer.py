@@ -7,7 +7,7 @@ import random
 from typing import List
 from classsync_core.scheduler.chromosome import Chromosome, Gene
 from classsync_core.scheduler.config import GAConfig
-from classsync_core.utils import calculate_slot_end_time, time_to_minutes
+from classsync_core.utils import calculate_slot_end_time, time_to_minutes, slots_overlap
 
 
 class PopulationInitializer:
@@ -142,13 +142,17 @@ class PopulationInitializer:
         genes = []
         day_end_minutes = time_to_minutes(self.config.day_end_time)
 
-        # Track used slots: {(day, start_time, room): True}
-        used_slots = set()
-        teacher_schedule = {}  # {teacher_id: {day: [start_time]}}
-        section_schedule = {}  # {section_id: {day: [start_time]}}
+        # Track used resources with time ranges
+        # Structure: {id: {day: [(start, end)]}}
+        teacher_schedule = {} 
+        section_schedule = {}
+        room_schedule = {}  # Added room schedule tracking
 
-        # Sort sessions by constraint difficulty (labs first)
-        sessions = self.sessions_df.sort_values('Is_Lab', ascending=False)
+        # Sort sessions by constraint difficulty (labs first, then longer durations)
+        sessions = self.sessions_df.sort_values(
+            by=['Is_Lab', 'Duration_Minutes'], 
+            ascending=[False, False]
+        )
 
         for _, session in sessions.iterrows():
             duration = session['Duration_Minutes']
@@ -158,10 +162,14 @@ class PopulationInitializer:
             for day, start in self.time_slots:
                 end_time = calculate_slot_end_time(start, duration)
                 if time_to_minutes(end_time) <= day_end_minutes:
-                    valid_slots.append((day, start))
+                    valid_slots.append((day, start, end_time))
             
             if not valid_slots:
-                valid_slots = self.time_slots
+                # Fallback
+                valid_slots = [
+                    (d, s, calculate_slot_end_time(s, duration)) 
+                    for d, s in self.time_slots
+                ]
 
             # Try to find valid slot
             valid_slot_found = False
@@ -179,8 +187,7 @@ class PopulationInitializer:
                 attempts += 1
 
                 # Pick random day and time
-                day, start_time = random.choice(valid_slots)
-                end_time = calculate_slot_end_time(start_time, duration)
+                day, start_time, end_time = random.choice(valid_slots)
 
                 # Check if blocked
                 if self.config.is_blocked(day, start_time, end_time):
@@ -191,24 +198,19 @@ class PopulationInitializer:
                     room_row = self.rooms_df[self.rooms_df['Room_Code'] == room_code].iloc[0]
                     room_id = room_row.get('Room_ID', hash(room_code) % 10000)
 
-                    # Check conflicts
-                    slot_key = (day, start_time, room_code)
-                    if slot_key in used_slots:
+                    # 1. Check Room Conflict
+                    if self._has_overlap(room_schedule, room_code, day, start_time, end_time):
                         continue
 
-                    # Check teacher conflict
+                    # 2. Check Teacher Conflict
                     teacher_id = session['Teacher_ID']
-                    if teacher_id in teacher_schedule:
-                        if day in teacher_schedule[teacher_id]:
-                            if start_time in teacher_schedule[teacher_id][day]:
-                                continue
+                    if self._has_overlap(teacher_schedule, teacher_id, day, start_time, end_time):
+                        continue
 
-                    # Check section conflict
+                    # 3. Check Section Conflict
                     section_id = session['Section_ID']
-                    if section_id in section_schedule:
-                        if day in section_schedule[section_id]:
-                            if start_time in section_schedule[section_id][day]:
-                                continue
+                    if self._has_overlap(section_schedule, section_id, day, start_time, end_time):
+                        continue
 
                     # Valid placement found!
                     gene = Gene(
@@ -230,20 +232,11 @@ class PopulationInitializer:
                     )
 
                     genes.append(gene)
-                    used_slots.add(slot_key)
 
                     # Update schedules
-                    if teacher_id not in teacher_schedule:
-                        teacher_schedule[teacher_id] = {}
-                    if day not in teacher_schedule[teacher_id]:
-                        teacher_schedule[teacher_id][day] = []
-                    teacher_schedule[teacher_id][day].append(start_time)
-
-                    if section_id not in section_schedule:
-                        section_schedule[section_id] = {}
-                    if day not in section_schedule[section_id]:
-                        section_schedule[section_id][day] = []
-                    section_schedule[section_id][day].append(start_time)
+                    self._add_booking(teacher_schedule, teacher_id, day, start_time, end_time)
+                    self._add_booking(section_schedule, section_id, day, start_time, end_time)
+                    self._add_booking(room_schedule, room_code, day, start_time, end_time)
 
                     valid_slot_found = True
                     break
@@ -252,9 +245,8 @@ class PopulationInitializer:
                     break
 
             # If no valid slot found after max attempts, add with random assignment
-            # (will be repaired later)
             if not valid_slot_found:
-                day, start_time = random.choice(valid_slots)
+                day, start_time, end_time = random.choice(valid_slots)
                 room_code = random.choice(available_rooms)
                 room_row = self.rooms_df[self.rooms_df['Room_Code'] == room_code].iloc[0]
                 room_id = room_row.get('Room_ID', hash(room_code) % 10000)
@@ -279,3 +271,24 @@ class PopulationInitializer:
                 genes.append(gene)
 
         return Chromosome(genes)
+
+    def _has_overlap(self, schedule_dict, resource_id, day, start, end):
+        """Check if resource has overlap in schedule."""
+        if resource_id not in schedule_dict:
+            return False
+        if day not in schedule_dict[resource_id]:
+            return False
+        
+        for booked_start, booked_end in schedule_dict[resource_id][day]:
+            if slots_overlap(start, end, booked_start, booked_end):
+                return True
+        return False
+
+    def _add_booking(self, schedule_dict, resource_id, day, start, end):
+        """Add booking to schedule."""
+        if resource_id not in schedule_dict:
+            schedule_dict[resource_id] = {}
+        if day not in schedule_dict[resource_id]:
+            schedule_dict[resource_id][day] = []
+        
+        schedule_dict[resource_id][day].append((start, end))

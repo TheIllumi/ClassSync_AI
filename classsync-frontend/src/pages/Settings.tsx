@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Plus, Trash2, Check } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { constraintsApi } from '@/lib/api'
 
 type ConstraintConfig = {
@@ -284,7 +285,7 @@ export function Settings() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-sm font-medium">Population Size</label>
-                            <input
+                            <Input
                                 type="number"
                                 min={1}
                                 max={500}
@@ -295,7 +296,7 @@ export function Settings() {
                                         population_size: Math.max(1, toInt(e.target.value, s.population_size)),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Number of schedules in each generation
@@ -304,7 +305,7 @@ export function Settings() {
 
                         <div>
                             <label className="text-sm font-medium">Generations</label>
-                            <input
+                            <Input
                                 type="number"
                                 min={1}
                                 max={2000}
@@ -315,7 +316,7 @@ export function Settings() {
                                         generations: Math.max(1, toInt(e.target.value, s.generations)),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Number of evolution cycles
@@ -324,7 +325,7 @@ export function Settings() {
 
                         <div>
                             <label className="text-sm font-medium">Mutation Rate</label>
-                            <input
+                            <Input
                                 type="number"
                                 step="0.01"
                                 min={0}
@@ -336,7 +337,7 @@ export function Settings() {
                                         mutation_rate: Math.min(1, Math.max(0, toFloat(e.target.value, s.mutation_rate))),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Probability of random changes (0.0 - 1.0)
@@ -345,7 +346,7 @@ export function Settings() {
 
                         <div>
                             <label className="text-sm font-medium">Elite Size</label>
-                            <input
+                            <Input
                                 type="number"
                                 min={0}
                                 max={50}
@@ -356,7 +357,7 @@ export function Settings() {
                                         elite_size: Math.max(0, toInt(e.target.value, s.elite_size)),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Top schedules preserved each generation
@@ -365,7 +366,7 @@ export function Settings() {
 
                         <div>
                             <label className="text-sm font-medium">Max Time (seconds)</label>
-                            <input
+                            <Input
                                 type="number"
                                 min={10}
                                 max={3600}
@@ -376,7 +377,7 @@ export function Settings() {
                                         max_time: Math.max(10, toInt(e.target.value, s.max_time)),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Maximum optimization time
@@ -385,7 +386,7 @@ export function Settings() {
 
                         <div>
                             <label className="text-sm font-medium">Min Score</label>
-                            <input
+                            <Input
                                 type="number"
                                 step="0.1"
                                 min={0}
@@ -397,7 +398,7 @@ export function Settings() {
                                         min_score: Math.min(1, Math.max(0, toFloat(e.target.value, s.min_score))),
                                     }))
                                 }
-                                className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="mt-1"
                             />
                             <p className="text-xs text-muted-foreground mt-1">
                                 Minimum acceptable fitness score
