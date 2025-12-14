@@ -9,10 +9,14 @@ import {
     Clock,
     CheckCircle,
     AlertCircle,
-    Loader2
+    Loader2,
+    Edit2,
+    Save,
+    X
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { timetablesApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
 
@@ -20,6 +24,9 @@ export function Timetables() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const [, setGeneratingId] = useState<number | null>(null)
+    const [editingId, setEditingId] = useState<number | null>(null)
+    const [editingName, setEditingName] = useState('')
+    const [showGenerateDialog, setShowGenerateDialog] = useState(false)
 
     // Fetch timetables
     const { data: timetables, isLoading } = useQuery({
@@ -50,6 +57,17 @@ export function Timetables() {
         },
     })
 
+    // Rename mutation
+    const renameMutation = useMutation({
+        mutationFn: ({ id, name }: { id: number; name: string }) => 
+            timetablesApi.update(id, name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['timetables'] })
+            setEditingId(null)
+            setEditingName('')
+        },
+    })
+
     // Export mutation
     const exportMutation = useMutation({
         mutationFn: ({ id, format }: { id: number; format: string }) =>
@@ -67,9 +85,7 @@ export function Timetables() {
     })
 
     const handleGenerate = () => {
-        if (confirm('Generate a new timetable? This may take a few minutes.')) {
-            generateMutation.mutate()
-        }
+        setShowGenerateDialog(true)
     }
 
     const handleDelete = (id: number) => {
@@ -80,6 +96,17 @@ export function Timetables() {
 
     const handleExport = (id: number, format: string) => {
         exportMutation.mutate({ id, format })
+    }
+
+    const startEditing = (timetable: any) => {
+        setEditingId(timetable.id)
+        setEditingName(timetable.name)
+    }
+
+    const saveRename = (id: number) => {
+        if (editingName.trim()) {
+            renameMutation.mutate({ id, name: editingName })
+        }
     }
 
     return (
@@ -139,17 +166,60 @@ export function Timetables() {
                         <Card key={timetable.id} className="hover:shadow-lg transition-shadow">
                             <CardHeader>
                                 <div className="flex items-start justify-between">
-                                    <div>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Calendar className="h-5 w-5 text-primary" />
-                                            {timetable.name}
-                                        </CardTitle>
-                                        <CardDescription className="mt-1">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="h-5 w-5 text-primary flex-shrink-0" />
+                                            {editingId === timetable.id ? (
+                                                <div className="flex items-center gap-2 flex-1 max-w-sm">
+                                                    <Input
+                                                        value={editingName}
+                                                        onChange={(e) => setEditingName(e.target.value)}
+                                                        className="h-8"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') saveRename(timetable.id)
+                                                            if (e.key === 'Escape') setEditingId(null)
+                                                        }}
+                                                    />
+                                                    <Button 
+                                                        size="icon" 
+                                                        variant="ghost" 
+                                                        className="h-8 w-8"
+                                                        onClick={() => saveRename(timetable.id)}
+                                                    >
+                                                        <Save className="h-4 w-4 text-green-600" />
+                                                    </Button>
+                                                    <Button 
+                                                        size="icon" 
+                                                        variant="ghost" 
+                                                        className="h-8 w-8"
+                                                        onClick={() => setEditingId(null)}
+                                                    >
+                                                        <X className="h-4 w-4 text-red-600" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 group">
+                                                    <CardTitle className="leading-none">
+                                                        {timetable.name}
+                                                    </CardTitle>
+                                                    <Button 
+                                                        size="icon" 
+                                                        variant="ghost" 
+                                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={() => startEditing(timetable)}
+                                                    >
+                                                        <Edit2 className="h-3 w-3 text-muted-foreground" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <CardDescription className="mt-1 ml-7">
                                             {timetable.semester} {timetable.year}
                                         </CardDescription>
                                     </div>
                                     <span
-                                        className={`px-3 py-1 text-xs rounded-full ${
+                                        className={`px-3 py-1 text-xs rounded-full ml-4 ${
                                             timetable.status === 'COMPLETED'
                                                 ? 'bg-accent/20 text-accent'
                                                 : timetable.status === 'FAILED'
@@ -261,6 +331,43 @@ export function Timetables() {
                         </Button>
                     </CardContent>
                 </Card>
+            )}
+            
+            {/* Generation Confirmation Modal */}
+            {showGenerateDialog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <Card className="w-full max-w-md shadow-lg border-2">
+                        <CardHeader>
+                            <CardTitle>Generate New Timetable</CardTitle>
+                            <CardDescription>
+                                Are you sure you want to generate a new timetable?
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">
+                                This process uses a genetic algorithm to optimize the schedule. 
+                                It may take a few minutes to complete depending on the complexity of your data.
+                            </p>
+                        </CardContent>
+                        <div className="flex items-center justify-end gap-2 p-6 pt-0">
+                            <Button 
+                                variant="outline" 
+                                onClick={() => setShowGenerateDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={() => {
+                                    generateMutation.mutate()
+                                    setShowGenerateDialog(false)
+                                }}
+                            >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Generate
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
             )}
         </div>
     )

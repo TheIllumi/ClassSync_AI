@@ -10,7 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id
-from classsync_api.schemas import MessageResponse
+from classsync_api.schemas import MessageResponse, TimetableUpdate
 from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry
 from classsync_core.optimizer import TimetableOptimizer
 
@@ -198,6 +198,32 @@ async def delete_timetable(
     return MessageResponse(
         message="Timetable deleted successfully",
         details={"timetable_id": timetable_id}
+    )
+
+
+@router.patch("/timetables/{timetable_id}", response_model=MessageResponse)
+async def update_timetable(
+    timetable_id: int,
+    update_data: TimetableUpdate,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Update a generated timetable."""
+    
+    timetable = db.query(Timetable).filter(
+        Timetable.id == timetable_id,
+        Timetable.institution_id == 1
+    ).first()
+
+    if not timetable:
+        raise HTTPException(status_code=404, detail="Timetable not found")
+
+    timetable.name = update_data.name
+    db.commit()
+
+    return MessageResponse(
+        message="Timetable updated successfully",
+        details={"timetable_id": timetable_id, "name": timetable.name}
     )
 
 

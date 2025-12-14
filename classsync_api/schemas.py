@@ -353,3 +353,8 @@ class ConstraintConfigListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TimetableUpdate(BaseModel):
+    """Schema for updating a timetable."""
+    name: str = Field(..., min_length=1, max_length=255)
