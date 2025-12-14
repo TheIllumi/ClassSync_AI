@@ -12,7 +12,9 @@ import {
     Loader2,
     Edit2,
     Save,
-    X
+    FileText,
+    FileSpreadsheet,
+    Sparkles
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +29,7 @@ export function Timetables() {
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingName, setEditingName] = useState('')
     const [showGenerateDialog, setShowGenerateDialog] = useState(false)
+    const [activeMenu, setActiveMenu] = useState<number | null>(null)
 
     // Fetch timetables
     const { data: timetables, isLoading } = useQuery({
@@ -81,6 +84,7 @@ export function Timetables() {
             document.body.appendChild(link)
             link.click()
             link.remove()
+            setActiveMenu(null)
         },
     })
 
@@ -92,10 +96,6 @@ export function Timetables() {
         if (confirm('Delete this timetable? This action cannot be undone.')) {
             deleteMutation.mutate(id)
         }
-    }
-
-    const handleExport = (id: number, format: string) => {
-        exportMutation.mutate({ id, format })
     }
 
     const startEditing = (timetable: any) => {
@@ -110,19 +110,20 @@ export function Timetables() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Timetables</h1>
-                    <p className="text-muted-foreground mt-1">
-                        View and manage generated timetables
+                    <p className="text-muted-foreground mt-1 text-lg">
+                        Manage your generated schedules
                     </p>
                 </div>
                 <Button
                     onClick={handleGenerate}
                     disabled={generateMutation.isPending}
                     size="lg"
+                    className="shadow-md hover:shadow-xl transition-all"
                 >
                     {generateMutation.isPending ? (
                         <>
@@ -131,7 +132,7 @@ export function Timetables() {
                         </>
                     ) : (
                         <>
-                            <Calendar className="mr-2 h-4 w-4" />
+                            <Sparkles className="mr-2 h-4 w-4" />
                             Generate New
                         </>
                     )}
@@ -140,14 +141,16 @@ export function Timetables() {
 
             {/* Generation Progress */}
             {generateMutation.isPending && (
-                <Card className="border-primary">
+                <Card className="border-primary/50 bg-primary/5">
                     <CardContent className="pt-6">
                         <div className="flex items-center gap-4">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <div className="relative">
+                                <div className="h-10 w-10 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+                            </div>
                             <div>
-                                <p className="font-medium">Generating timetable...</p>
+                                <p className="font-semibold text-lg">Optimizing Schedule...</p>
                                 <p className="text-sm text-muted-foreground">
-                                    This may take 2-3 minutes. Please wait.
+                                    Our AI is finding the best slots. This may take 2-3 minutes.
                                 </p>
                             </div>
                         </div>
@@ -155,58 +158,44 @@ export function Timetables() {
                 </Card>
             )}
 
-            {/* Timetables List */}
+            {/* Timetables Grid */}
             {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="flex items-center justify-center py-24">
+                    <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
                 </div>
             ) : timetables && timetables.length > 0 ? (
-                <div className="grid gap-4">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {timetables.map((timetable: any) => (
-                        <Card key={timetable.id} className="hover:shadow-lg transition-shadow">
-                            <CardHeader>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
+                        <Card key={timetable.id} className="group relative overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 border-border/60">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <Calendar className="h-5 w-5 text-primary flex-shrink-0" />
                                             {editingId === timetable.id ? (
-                                                <div className="flex items-center gap-2 flex-1 max-w-sm">
+                                                <div className="flex items-center gap-1 flex-1">
                                                     <Input
                                                         value={editingName}
                                                         onChange={(e) => setEditingName(e.target.value)}
-                                                        className="h-8"
+                                                        className="h-8 text-sm"
                                                         autoFocus
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') saveRename(timetable.id)
                                                             if (e.key === 'Escape') setEditingId(null)
                                                         }}
                                                     />
-                                                    <Button 
-                                                        size="icon" 
-                                                        variant="ghost" 
-                                                        className="h-8 w-8"
-                                                        onClick={() => saveRename(timetable.id)}
-                                                    >
-                                                        <Save className="h-4 w-4 text-green-600" />
-                                                    </Button>
-                                                    <Button 
-                                                        size="icon" 
-                                                        variant="ghost" 
-                                                        className="h-8 w-8"
-                                                        onClick={() => setEditingId(null)}
-                                                    >
-                                                        <X className="h-4 w-4 text-red-600" />
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveRename(timetable.id)}>
+                                                        <Save className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-2 group">
-                                                    <CardTitle className="leading-none">
+                                                <div className="flex items-center gap-2 group/title">
+                                                    <h3 className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors" onClick={() => navigate(`/timetables/${timetable.id}`)}>
                                                         {timetable.name}
-                                                    </CardTitle>
+                                                    </h3>
                                                     <Button 
                                                         size="icon" 
                                                         variant="ghost" 
-                                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        className="h-6 w-6 opacity-0 group-hover/title:opacity-100 transition-opacity"
                                                         onClick={() => startEditing(timetable)}
                                                     >
                                                         <Edit2 className="h-3 w-3 text-muted-foreground" />
@@ -214,103 +203,111 @@ export function Timetables() {
                                                 </div>
                                             )}
                                         </div>
-                                        <CardDescription className="mt-1 ml-7">
+                                        <p className="text-sm text-muted-foreground mt-1">
                                             {timetable.semester} {timetable.year}
-                                        </CardDescription>
+                                        </p>
                                     </div>
-                                    <span
-                                        className={`px-3 py-1 text-xs rounded-full ml-4 ${
-                                            timetable.status === 'COMPLETED'
-                                                ? 'bg-accent/20 text-accent'
-                                                : timetable.status === 'FAILED'
-                                                    ? 'bg-destructive/20 text-destructive'
-                                                    : 'bg-secondary/20 text-secondary'
-                                        }`}
-                                    >
-                    {timetable.status}
-                  </span>
+                                    <div className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                        timetable.status === 'COMPLETED' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900' :
+                                        timetable.status === 'FAILED' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900' :
+                                        'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900'
+                                    }`}>
+                                        {timetable.status}
+                                    </div>
                                 </div>
                             </CardHeader>
+                            
                             <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="h-4 w-4 text-muted-foreground" />
+                                <div className="grid grid-cols-2 gap-y-4 gap-x-2 mb-6">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                                            <CheckCircle className="h-4 w-4" />
+                                        </div>
                                         <div>
-                                            <p className="text-xs text-muted-foreground">Generation Time</p>
-                                            <p className="text-sm font-medium">
-                                                {timetable.generation_time_seconds.toFixed(1)}s
-                                            </p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Score</p>
+                                            <p className="font-medium text-sm">{timetable.constraint_score}%</p>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded-md bg-destructive/10 text-destructive">
+                                            <AlertCircle className="h-4 w-4" />
+                                        </div>
                                         <div>
-                                            <p className="text-xs text-muted-foreground">Score</p>
-                                            <p className="text-sm font-medium">
-                                                {timetable.constraint_score}
-                                            </p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Conflicts</p>
+                                            <p className="font-medium text-sm">{timetable.conflict_count}</p>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded-md bg-secondary/10 text-secondary">
+                                            <Clock className="h-4 w-4" />
+                                        </div>
                                         <div>
-                                            <p className="text-xs text-muted-foreground">Conflicts</p>
-                                            <p className="text-sm font-medium">
-                                                {timetable.conflict_count}
-                                            </p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Duration</p>
+                                            <p className="font-medium text-sm">{timetable.generation_time_seconds.toFixed(1)}s</p>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded-md bg-muted text-muted-foreground">
+                                            <Calendar className="h-4 w-4" />
+                                        </div>
                                         <div>
-                                            <p className="text-xs text-muted-foreground">Created</p>
-                                            <p className="text-sm font-medium">
-                                                {formatDateTime(timetable.created_at)}
-                                            </p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Created</p>
+                                            <p className="font-medium text-sm truncate">{formatDateTime(timetable.created_at).split(',')[0]}</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 pt-4 border-t border-border/50">
                                     <Button
-                                        variant="outline"
+                                        className="flex-1"
+                                        variant="default"
                                         size="sm"
                                         onClick={() => navigate(`/timetables/${timetable.id}`)}
                                     >
                                         <Eye className="mr-2 h-4 w-4" />
                                         View
                                     </Button>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleExport(timetable.id, 'xlsx')}
-                                        disabled={exportMutation.isPending}
-                                    >
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Export XLSX
-                                    </Button>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleExport(timetable.id, 'csv')}
-                                        disabled={exportMutation.isPending}
-                                    >
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Export CSV
-                                    </Button>
+                                    
+                                    <div className="relative">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9"
+                                            onClick={() => setActiveMenu(activeMenu === timetable.id ? null : timetable.id)}
+                                        >
+                                            <Download className="h-4 w-4" />
+                                        </Button>
+                                        
+                                        {activeMenu === timetable.id && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
+                                                <div className="absolute right-0 bottom-10 w-40 bg-popover border border-border shadow-lg rounded-lg p-1 z-20 flex flex-col gap-1 animate-in zoom-in-95 duration-200">
+                                                    <button 
+                                                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted rounded-md transition-colors"
+                                                        onClick={() => exportMutation.mutate({ id: timetable.id, format: 'xlsx' })}
+                                                    >
+                                                        <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                                                        Export XLSX
+                                                    </button>
+                                                    <button 
+                                                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted rounded-md transition-colors"
+                                                        onClick={() => exportMutation.mutate({ id: timetable.id, format: 'csv' })}
+                                                    >
+                                                        <FileText className="h-4 w-4 text-blue-600" />
+                                                        Export CSV
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
                                     <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
+                                        className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         onClick={() => handleDelete(timetable.id)}
-                                        disabled={deleteMutation.isPending}
                                     >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </CardContent>
@@ -318,52 +315,59 @@ export function Timetables() {
                     ))}
                 </div>
             ) : (
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                        <Calendar className="h-16 w-16 text-muted-foreground mb-4" />
-                        <p className="text-lg font-medium mb-2">No timetables yet</p>
-                        <p className="text-sm text-muted-foreground mb-6">
-                            Generate your first timetable to get started
-                        </p>
-                        <Button onClick={handleGenerate}>
-                            <Calendar className="mr-2 h-4 w-4" />
-                            Generate Timetable
-                        </Button>
-                    </CardContent>
-                </Card>
+                <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 border-2 border-dashed border-muted-foreground/20 rounded-3xl">
+                    <div className="bg-background p-6 rounded-full shadow-sm mb-6">
+                        <Calendar className="h-12 w-12 text-primary/60" />
+                    </div>
+                    <h3 className="text-xl font-semibold">No timetables generated yet</h3>
+                    <p className="text-muted-foreground text-base max-w-sm mt-2 mb-8">
+                        Upload your data and start the optimization engine to create your first conflict-free schedule.
+                    </p>
+                    <Button onClick={handleGenerate} size="lg" className="shadow-lg">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate First Timetable
+                    </Button>
+                </div>
             )}
             
             {/* Generation Confirmation Modal */}
             {showGenerateDialog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                    <Card className="w-full max-w-md shadow-lg border-2">
-                        <CardHeader>
-                            <CardTitle>Generate New Timetable</CardTitle>
-                            <CardDescription>
-                                Are you sure you want to generate a new timetable?
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <Card className="w-full max-w-md shadow-2xl border-none ring-1 ring-border bg-card/95 backdrop-blur-xl">
+                        <CardHeader className="text-center pb-2">
+                            <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
+                                <Sparkles className="h-8 w-8 text-primary" />
+                            </div>
+                            <CardTitle className="text-xl">Start Optimization?</CardTitle>
+                            <CardDescription className="text-base">
+                                Ready to generate a new timetable.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">
-                                This process uses a genetic algorithm to optimize the schedule. 
-                                It may take a few minutes to complete depending on the complexity of your data.
+                        <CardContent className="text-center">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                ClassSync AI will use genetic algorithms to find the best schedule. 
+                                This typically takes <strong>1-3 minutes</strong> depending on your dataset size.
                             </p>
                         </CardContent>
-                        <div className="flex items-center justify-end gap-2 p-6 pt-0">
+                        <div className="flex items-center justify-center gap-3 p-6 pt-2">
                             <Button 
                                 variant="outline" 
+                                size="lg"
+                                className="w-full"
                                 onClick={() => setShowGenerateDialog(false)}
                             >
                                 Cancel
                             </Button>
                             <Button 
+                                size="lg"
+                                className="w-full shadow-lg"
                                 onClick={() => {
                                     generateMutation.mutate()
                                     setShowGenerateDialog(false)
                                 }}
                             >
-                                <Calendar className="mr-2 h-4 w-4" />
-                                Generate
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Start Engine
                             </Button>
                         </div>
                     </Card>

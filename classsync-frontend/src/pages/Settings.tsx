@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Plus, Trash2, Check } from 'lucide-react'
+import { Save, Plus, Trash2, Check, Sliders, Cpu, Settings2, Clock, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { constraintsApi } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 type ConstraintConfig = {
     id: number
@@ -68,356 +69,278 @@ export function Settings() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
             {/* Page Header */}
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground mt-1">
-                    Configure constraints and optimizer parameters
-                </p>
+            <div className="flex items-center gap-4 border-b border-border/40 pb-6">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                    <Settings2 className="h-8 w-8" />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+                    <p className="text-muted-foreground mt-1 text-lg">
+                        Configure constraint profiles and optimize algorithmic parameters
+                    </p>
+                </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Constraint Configurations */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Constraint Configurations</CardTitle>
-                        <CardDescription>Manage your timetabling constraints</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <p className="text-sm text-muted-foreground">Loading...</p>
-                        ) : configs.length > 0 ? (
-                            <div className="space-y-2">
-                                {configs.map((config) => (
-                                    <div
-                                        key={config.id}
-                                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors cursor-pointer"
-                                        onClick={() => setSelectedConfig(config)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {config.is_default && <Check className="h-4 w-4 text-accent" />}
+            {/* Main Content Grid */}
+            <div className="grid gap-8 lg:grid-cols-12">
+                {/* Left Column: Configuration List */}
+                <div className="lg:col-span-4 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold flex items-center gap-2">
+                            <Sliders className="h-5 w-5 text-muted-foreground" />
+                            Profiles
+                        </h2>
+                        <Button size="sm" variant="outline" onClick={() => alert('Create feature coming soon!')}>
+                            <Plus className="h-4 w-4 mr-2" /> New
+                        </Button>
+                    </div>
+
+                    <Card className="border-border/60 shadow-sm overflow-hidden">
+                        <CardContent className="p-0">
+                            {isLoading ? (
+                                <div className="p-8 text-center text-muted-foreground">Loading...</div>
+                            ) : configs.length > 0 ? (
+                                <div className="divide-y divide-border/50">
+                                    {configs.map((config) => (
+                                        <div
+                                            key={config.id}
+                                            className={cn(
+                                                "p-4 cursor-pointer transition-all hover:bg-muted/50 flex flex-col gap-2 relative group",
+                                                selectedConfig?.id === config.id ? "bg-muted/50" : ""
+                                            )}
+                                            onClick={() => setSelectedConfig(config)}
+                                        >
+                                            {config.is_default && (
+                                                <div className="absolute top-4 right-4 flex items-center gap-1.5 text-[10px] uppercase font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full tracking-wider">
+                                                    Active
+                                                </div>
+                                            )}
+                                            
                                             <div>
-                                                <p className="font-medium">{config.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {config.days_per_week} days • {config.timeslot_duration_minutes}min slots
+                                                <p className={cn("font-medium text-base", selectedConfig?.id === config.id ? "text-primary" : "text-foreground")}>
+                                                    {config.name}
                                                 </p>
+                                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" /> {config.timeslot_duration_minutes}m
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>{config.days_per_week} Days</span>
+                                                </div>
+                                            </div>
+
+                                            {selectedConfig?.id === config.id && (
+                                                <div className="flex items-center gap-2 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    {!config.is_default && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            className="h-7 text-xs w-full"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setDefaultMutation.mutate(config.id)
+                                                            }}
+                                                            disabled={setDefaultMutation.isPending}
+                                                        >
+                                                            Set Active
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            if (confirm('Delete this configuration?')) deleteMutation.mutate(config.id)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center text-muted-foreground">No profiles found</div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Right Column: Configuration Details & Optimizer */}
+                <div className="lg:col-span-8 space-y-8">
+                    {/* Active/Selected Config Details */}
+                    <Card className="border-border/60 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+                        <CardHeader className="pb-4 border-b border-border/40 bg-muted/10">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-xl">
+                                        {selectedConfig ? selectedConfig.name : (defaultConfig ? defaultConfig.name : 'Configuration Details')}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {selectedConfig ? 'Editing selected profile' : 'Currently viewing active profile'}
+                                    </CardDescription>
+                                </div>
+                                {selectedConfig && (
+                                    <Button variant="ghost" size="icon" onClick={() => setSelectedConfig(null)}>
+                                        <Check className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            {(selectedConfig || defaultConfig) ? (
+                                <div className="space-y-8">
+                                    {/* Time Settings Section */}
+                                    <div>
+                                        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                                            <Clock className="h-4 w-4" /> Schedule Parameters
+                                        </h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="p-3 bg-background rounded-lg border border-border/60">
+                                                <p className="text-xs text-muted-foreground mb-1">Days / Week</p>
+                                                <p className="text-lg font-bold">{(selectedConfig || defaultConfig)?.days_per_week}</p>
+                                            </div>
+                                            <div className="p-3 bg-background rounded-lg border border-border/60">
+                                                <p className="text-xs text-muted-foreground mb-1">Slot Duration</p>
+                                                <p className="text-lg font-bold">{(selectedConfig || defaultConfig)?.timeslot_duration_minutes}m</p>
+                                            </div>
+                                            <div className="p-3 bg-background rounded-lg border border-border/60">
+                                                <p className="text-xs text-muted-foreground mb-1">Start Time</p>
+                                                <p className="text-lg font-bold">{(selectedConfig || defaultConfig)?.start_time}</p>
+                                            </div>
+                                            <div className="p-3 bg-background rounded-lg border border-border/60">
+                                                <p className="text-xs text-muted-foreground mb-1">End Time</p>
+                                                <p className="text-lg font-bold">{(selectedConfig || defaultConfig)?.end_time}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        {/* Hard Constraints */}
+                                        <div>
+                                            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4" /> Hard Constraints
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {(selectedConfig || defaultConfig)?.hard_constraints &&
+                                                    Object.keys((selectedConfig || defaultConfig)!.hard_constraints!).map((key) => (
+                                                        <div key={key} className="flex items-center gap-3 p-2 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 text-sm">
+                                                            <Check className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                                                            <span className="text-red-900 dark:text-red-200 capitalize">{key.replace(/_/g, ' ')}</span>
+                                                        </div>
+                                                    ))}
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
-                                            {!config.is_default && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    disabled={setDefaultMutation.isPending}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setDefaultMutation.mutate(config.id)
-                                                    }}
-                                                >
-                                                    Set Default
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label="Delete configuration"
-                                                disabled={deleteMutation.isPending}
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    if (confirm('Delete this configuration?')) {
-                                                        deleteMutation.mutate(config.id)
-                                                    }
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                        {/* Soft Constraints */}
+                                        <div>
+                                            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+                                                <Sliders className="h-4 w-4" /> Preferences
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {(selectedConfig || defaultConfig)?.soft_constraints &&
+                                                    Object.entries((selectedConfig || defaultConfig)!.soft_constraints!).map(([key, value]) => (
+                                                        <div key={key} className="flex items-center justify-between p-2 rounded-lg bg-background border border-border/60 text-sm">
+                                                            <span className="text-foreground/80 capitalize">{key.replace(/_/g, ' ')}</span>
+                                                            <span className="font-semibold bg-secondary/10 text-secondary px-2 py-0.5 rounded text-xs">
+                                                                {typeof value === 'number' ? `Weight: ${value}` : 'Enabled'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {selectedConfig && (
+                                        <div className="pt-4 border-t border-border/40 flex justify-end">
+                                            <Button onClick={() => alert('Save feature coming soon!')}>
+                                                <Save className="mr-2 h-4 w-4" /> Save Changes
                                             </Button>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No configurations found</p>
-                        )}
-
-                        <Button
-                            className="w-full mt-4"
-                            variant="outline"
-                            onClick={() => {
-                                alert('Create Configuration feature coming soon! For now, configurations are managed in the database.')
-                            }}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create New Configuration
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* Configuration Details */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            {selectedConfig ? selectedConfig.name : 'Select a Configuration'}
-                        </CardTitle>
-                        <CardDescription>
-                            {selectedConfig ? 'View and edit constraint details' : 'Choose a configuration to view details'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {selectedConfig ? (
-                            <div className="space-y-6">
-                                {/* Time Settings */}
-                                <div>
-                                    <h3 className="font-semibold mb-3">Time Settings</h3>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Days per Week:</span>
-                                            <span className="font-medium">{selectedConfig.days_per_week}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Slot Duration:</span>
-                                            <span className="font-medium">{selectedConfig.timeslot_duration_minutes} minutes</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Start Time:</span>
-                                            <span className="font-medium">{selectedConfig.start_time}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">End Time:</span>
-                                            <span className="font-medium">{selectedConfig.end_time}</span>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
+                            ) : (
+                                <div className="py-12 text-center text-muted-foreground">Select a profile to view details</div>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                                {/* Hard Constraints */}
-                                <div>
-                                    <h3 className="font-semibold mb-3">Hard Constraints</h3>
-                                    <div className="space-y-2">
-                                        {selectedConfig.hard_constraints &&
-                                            Object.keys(selectedConfig.hard_constraints).map((key) => (
-                                                <div key={key} className="flex items-center gap-2 text-sm">
-                                                    <Check className="h-4 w-4 text-accent" />
-                                                    <span>{key.replace(/_/g, ' ')}</span>
-                                                </div>
-                                            ))}
-                                    </div>
+                    {/* Optimizer Settings */}
+                    <Card className="border-border/60 shadow-sm">
+                        <CardHeader className="bg-muted/5 border-b border-border/40">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
+                                    <Cpu className="h-5 w-5" />
                                 </div>
-
-                                {/* Soft Constraints */}
                                 <div>
-                                    <h3 className="font-semibold mb-3">Soft Constraints</h3>
-                                    <div className="space-y-2">
-                                        {selectedConfig.soft_constraints &&
-                                            Object.entries(selectedConfig.soft_constraints).map(([key, value]) => (
-                                                <div key={key} className="flex items-center justify-between text-sm">
-                                                    <span className="text-muted-foreground">{key.replace(/_/g, ' ')}</span>
-                                                    <span className="font-medium">{typeof value === 'number' ? value : 'enabled'}</span>
-                                                </div>
-                                            ))}
-                                    </div>
+                                    <CardTitle className="text-lg">Genetic Algorithm Engine</CardTitle>
+                                    <CardDescription>Fine-tune the optimization parameters</CardDescription>
                                 </div>
-
-                                <Button
-                                    className="w-full"
-                                    onClick={() => {
-                                        alert('Save feature coming soon! Configuration changes will be persisted to the database.')
-                                    }}
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Save Changes
-                                </Button>
                             </div>
-                        ) : (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <p>Select a configuration from the list to view details</p>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Population Size</label>
+                                    <Input
+                                        type="number"
+                                        value={optimizerSettings.population_size}
+                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, population_size: toInt(e.target.value) }))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">Higher = more diversity, slower.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Generations</label>
+                                    <Input
+                                        type="number"
+                                        value={optimizerSettings.generations}
+                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, generations: toInt(e.target.value) }))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">Iterations to evolve.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Mutation Rate (0-1)</label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={optimizerSettings.mutation_rate}
+                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, mutation_rate: toFloat(e.target.value) }))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">Probability of random changes.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Elite Size</label>
+                                    <Input
+                                        type="number"
+                                        value={optimizerSettings.elite_size}
+                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, elite_size: toInt(e.target.value) }))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">Best schedules kept per generation.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Max Time (s)</label>
+                                    <Input
+                                        type="number"
+                                        value={optimizerSettings.max_time}
+                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, max_time: toInt(e.target.value) }))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">Hard time limit.</p>
+                                </div>
+                                <div className="flex items-end">
+                                    <Button className="w-full" onClick={() => alert('Settings saved locally for next run.')}>
+                                        <Save className="mr-2 h-4 w-4" /> Save Parameters
+                                    </Button>
+                                </div>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
-
-            {/* Default Configuration Summary */}
-            {defaultConfig && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Check className="h-5 w-5 text-accent" />
-                            Active Configuration: {defaultConfig.name}
-                        </CardTitle>
-                        <CardDescription>
-                            This configuration will be used for new timetable generations
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="p-4 bg-primary/5 rounded-lg">
-                                <p className="text-2xl font-bold text-primary">{defaultConfig.days_per_week}</p>
-                                <p className="text-xs text-muted-foreground mt-1">Days per Week</p>
-                            </div>
-                            <div className="p-4 bg-secondary/5 rounded-lg">
-                                <p className="text-2xl font-bold text-secondary">{defaultConfig.timeslot_duration_minutes}min</p>
-                                <p className="text-xs text-muted-foreground mt-1">Slot Duration</p>
-                            </div>
-                            <div className="p-4 bg-accent/5 rounded-lg">
-                                <p className="text-2xl font-bold text-accent">
-                                    {defaultConfig.start_time} - {defaultConfig.end_time}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">Working Hours</p>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg">
-                                <p className="text-2xl font-bold">
-                                    {Object.keys(defaultConfig.hard_constraints || {}).length}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">Hard Constraints</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Advanced Settings */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Advanced Optimizer Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium">Population Size</label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={500}
-                                value={optimizerSettings.population_size}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        population_size: Math.max(1, toInt(e.target.value, s.population_size)),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Number of schedules in each generation
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium">Generations</label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={2000}
-                                value={optimizerSettings.generations}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        generations: Math.max(1, toInt(e.target.value, s.generations)),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Number of evolution cycles
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium">Mutation Rate</label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                max={1}
-                                value={optimizerSettings.mutation_rate}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        mutation_rate: Math.min(1, Math.max(0, toFloat(e.target.value, s.mutation_rate))),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Probability of random changes (0.0 - 1.0)
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium">Elite Size</label>
-                            <Input
-                                type="number"
-                                min={0}
-                                max={50}
-                                value={optimizerSettings.elite_size}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        elite_size: Math.max(0, toInt(e.target.value, s.elite_size)),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Top schedules preserved each generation
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium">Max Time (seconds)</label>
-                            <Input
-                                type="number"
-                                min={10}
-                                max={3600}
-                                value={optimizerSettings.max_time}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        max_time: Math.max(10, toInt(e.target.value, s.max_time)),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Maximum optimization time
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium">Min Score</label>
-                            <Input
-                                type="number"
-                                step="0.1"
-                                min={0}
-                                max={1}
-                                value={optimizerSettings.min_score}
-                                onChange={(e) =>
-                                    setOptimizerSettings((s) => ({
-                                        ...s,
-                                        min_score: Math.min(1, Math.max(0, toFloat(e.target.value, s.min_score))),
-                                    }))
-                                }
-                                className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Minimum acceptable fitness score
-                            </p>
-                        </div>
-                    </div>
-
-                    <Button
-                        className="mt-6"
-                        onClick={() => {
-                            console.log('Saving optimizer settings:', optimizerSettings)
-                            alert('Optimizer settings saved! These will be used for the next timetable generation.')
-                        }}
-                    >
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Optimizer Settings
-                    </Button>
-                </CardContent>
-            </Card>
         </div>
     )
 }

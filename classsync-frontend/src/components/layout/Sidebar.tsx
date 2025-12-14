@@ -26,7 +26,7 @@ export function Sidebar() {
     return (
         <div
             className={cn(
-                "flex h-screen flex-col bg-gradient-to-b from-primary/10 to-secondary/10 border-r transition-all duration-300 ease-in-out",
+                "flex h-screen flex-col bg-gradient-to-b from-primary/5 via-background to-background border-r transition-all duration-300 ease-in-out",
                 isCollapsed ? "w-20" : "w-64"
             )}
         >
@@ -54,7 +54,7 @@ export function Sidebar() {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 space-y-1 px-3 py-4">
+            <nav className="flex-1 space-y-2 px-3 py-4">
                 {navigation.map((item) => {
                     const isActive = location.pathname === item.href
                     return (
@@ -62,15 +62,18 @@ export function Sidebar() {
                             key={item.name}
                             to={item.href}
                             className={cn(
-                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all group",
+                                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all group relative overflow-hidden",
                                 isActive
-                                    ? "bg-primary text-white shadow-md"
-                                    : "text-foreground hover:bg-white/50 hover:shadow-sm",
+                                    ? "bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/10"
+                                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                                 isCollapsed && "justify-center px-2"
                             )}
                             title={isCollapsed ? item.name : undefined}
                         >
-                            <item.icon className="h-5 w-5 shrink-0" />
+                            {isActive && (
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                            )}
+                            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive && "text-primary")} />
                             <span
                                 className={cn(
                                     "transition-all duration-300 whitespace-nowrap overflow-hidden",
@@ -85,9 +88,12 @@ export function Sidebar() {
             </nav>
 
             {/* Footer */}
-            <div className="border-t p-4">
-                <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/30 text-sm font-semibold">
+            <div className="border-t border-border/50 p-4">
+                <div className={cn(
+                    "flex items-center gap-3 rounded-xl p-2 transition-all hover:bg-muted/50 cursor-pointer",
+                    isCollapsed && "justify-center"
+                )}>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-secondary/40 to-primary/20 text-sm font-semibold ring-2 ring-background">
                         SM
                     </div>
                     <div
@@ -96,8 +102,8 @@ export function Sidebar() {
                             isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
                         )}
                     >
-                        <p className="text-sm font-medium truncate">Saad Mughal</p>
-                        <p className="text-xs text-muted-foreground truncate">Admin</p>
+                        <p className="text-sm font-medium truncate leading-none">Saad Mughal</p>
+                        <p className="text-xs text-muted-foreground truncate mt-1">Admin Workspace</p>
                     </div>
                 </div>
             </div>

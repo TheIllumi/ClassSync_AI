@@ -3,11 +3,15 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/components/dashboard/StatsCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/components/dashboard/StatsCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/components/layout/Sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/components/layout/Sidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/components/upload/FileUpload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/components/upload/FileUpload.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync-frontend/src/index.css" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/index.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Settings.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Upload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Upload.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -105,7 +109,7 @@
       <workItem from="1765487447333" duration="560000" />
       <workItem from="1765553396854" duration="11039000" />
       <workItem from="1765614711730" duration="7062000" />
-      <workItem from="1765718760313" duration="6008000" />
+      <workItem from="1765718760313" duration="8105000" />
     </task>
     <servers />
   </component>

@@ -15,10 +15,17 @@ interface StatsCardProps {
 }
 
 const colorClasses = {
-    blue: 'bg-primary/10 text-primary',
-    purple: 'bg-secondary/10 text-secondary',
-    green: 'bg-accent/10 text-accent',
-    coral: 'bg-destructive/10 text-destructive',
+    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+    purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400',
+    green: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400',
+    coral: 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400',
+}
+
+const gradientClasses = {
+    blue: 'from-blue-50/50 to-transparent dark:from-blue-900/10',
+    purple: 'from-purple-50/50 to-transparent dark:from-purple-900/10',
+    green: 'from-green-50/50 to-transparent dark:from-green-900/10',
+    coral: 'from-red-50/50 to-transparent dark:from-red-900/10',
 }
 
 export function StatsCard({
@@ -30,7 +37,10 @@ export function StatsCard({
                               color = 'blue'
                           }: StatsCardProps) {
     return (
-        <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
+        <Card className={cn(
+            "transition-all hover:shadow-lg hover:-translate-y-1 bg-gradient-to-br",
+            gradientClasses[color]
+        )}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                     {title}
@@ -50,7 +60,7 @@ export function StatsCard({
                     <div className="flex items-center gap-1 mt-2">
             <span className={cn(
                 "text-xs font-medium",
-                trend.isPositive ? "text-accent" : "text-destructive"
+                trend.isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
             )}>
               {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
             </span>

@@ -24,7 +24,7 @@ const COURSE_COLORS = [
     'bg-cyan-100 border-cyan-300 text-cyan-900',
 ]
 
-const PIXELS_PER_30_MIN = 100
+const PIXELS_PER_30_MIN = 30
 
 interface TimetableEntry {
     id: number
@@ -70,7 +70,7 @@ export function TimetableView() {
     }, [timetable])
 
     const renameMutation = useMutation({
-        mutationFn: ({ id, name }: { id: number; name: string }) => 
+        mutationFn: ({ id, name }: { id: number; name: string }) =>
             timetablesApi.update(id, name),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['timetable', id] })
@@ -84,7 +84,7 @@ export function TimetableView() {
     const handleExport = async (viewType: string) => {
         try {
             const response = await timetablesApi.export(Number(id), 'xlsx', viewType)
-            
+
             // Create download link
             const url = window.URL.createObjectURL(new Blob([response.data]))
             const link = document.createElement('a')
@@ -99,7 +99,7 @@ export function TimetableView() {
             alert('Failed to export timetable')
         }
     }
-    
+
     const handleSaveRename = () => {
         if (editingName.trim()) {
             renameMutation.mutate({ id: Number(id), name: editingName })
@@ -248,10 +248,10 @@ export function TimetableView() {
         const endRow = Math.ceil(endMinutes / 30) + 1
         return { startRow, endRow }
     }
-    
-    // Zoomed values
+
+    // Zoomed values - SIGNIFICANTLY REDUCED for ultra-compact cards
     const currentPixelsPer30Min = PIXELS_PER_30_MIN * zoomLevel
-    const minColumnWidth = 200 * zoomLevel
+    const minColumnWidth = 110 * zoomLevel // Reduced from 200 to 110 (45% reduction!)
 
     return (
         <div className="space-y-6">
@@ -274,16 +274,16 @@ export function TimetableView() {
                                         if (e.key === 'Escape') setIsEditing(false)
                                     }}
                                 />
-                                <Button 
-                                    size="icon" 
-                                    variant="ghost" 
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
                                     onClick={handleSaveRename}
                                 >
                                     <Save className="h-5 w-5 text-green-600" />
                                 </Button>
-                                <Button 
-                                    size="icon" 
-                                    variant="ghost" 
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
                                     onClick={() => setIsEditing(false)}
                                 >
                                     <X className="h-5 w-5 text-red-600" />
@@ -292,9 +292,9 @@ export function TimetableView() {
                         ) : (
                             <div className="flex items-center gap-2 group">
                                 <h1 className="text-3xl font-bold tracking-tight">{timetable.name}</h1>
-                                <Button 
-                                    size="icon" 
-                                    variant="ghost" 
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
                                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                                     onClick={() => setIsEditing(true)}
                                 >
@@ -310,8 +310,8 @@ export function TimetableView() {
 
                 <div className="flex items-center gap-2 relative">
                     <div className="relative">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                             className="min-w-[140px] justify-between"
                         >
@@ -324,8 +324,8 @@ export function TimetableView() {
 
                         {isExportMenuOpen && (
                             <>
-                                <div 
-                                    className="fixed inset-0 z-40" 
+                                <div
+                                    className="fixed inset-0 z-40"
                                     onClick={() => setIsExportMenuOpen(false)}
                                 />
                                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground ring-1 ring-black ring-opacity-5 z-50 border border-border">
@@ -431,157 +431,176 @@ export function TimetableView() {
                 </CardHeader>
 
                 <CardContent className="p-0">
-                    <div className="overflow-auto h-[calc(100vh-250px)]">
-                        <div className="min-w-[1400px]">
-                            {/* Sticky Header Row - Separate from grid */}
-                            <div
-                                className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-md"
-                                style={{
-                                    display: 'grid',
-                                    gap: '8px',
-                                    padding: '8px',
-                                    gridTemplateColumns: `70px ${DAYS.map((_, dayIndex) =>
-                                        `repeat(${maxConcurrentByDay[dayIndex]}, minmax(${minColumnWidth}px, 1fr))`
-                                    ).join(' ')}`,
-                                }}
-                            >
-                                {/* Time header cell */}
-                                <div className="sticky left-0 z-50 font-semibold text-sm text-muted-foreground p-3 bg-background/95 backdrop-blur border-r rounded-l-lg flex items-center justify-end shadow-sm">
+                    <div className="overflow-auto h-[calc(100vh-250px)] relative">
+                        <div className="flex min-w-max">
+                            {/* --- LEFT SIDEBAR (TIME) --- */}
+                            <div className="sticky left-0 z-50 w-[70px] bg-background border-r flex-shrink-0">
+                                {/* Time Header */}
+                                <div className="sticky top-0 z-50 h-[60px] flex items-center justify-end p-3 border-b bg-card border-b shadow-sm font-semibold text-sm text-muted-foreground">
                                     Time
                                 </div>
 
-                                {/* Day headers */}
-                                {DAYS.map((day, dayIndex) => (
-                                    <div
-                                        key={day}
-                                        className="font-semibold text-sm text-center p-3 bg-primary/10 rounded-lg"
-                                        style={{
-                                            gridColumn: `span ${maxConcurrentByDay[dayIndex]}`,
-                                        }}
-                                    >
-                                        {day}
-                                        {maxConcurrentByDay[dayIndex] > 1 && (
-                                            <span className="ml-2 text-xs opacity-60">
-                                                ({maxConcurrentByDay[dayIndex]} tracks)
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Main Grid - Time slots and classes */}
-                            <div
-                                className="grid gap-2 p-2"
-                                style={{
-                                    gridTemplateColumns: `70px ${DAYS.map((_, dayIndex) =>
-                                        `repeat(${maxConcurrentByDay[dayIndex]}, minmax(${minColumnWidth}px, 1fr))`
-                                    ).join(' ')}`,
-                                }}
-                            >
-                                {/* Time slots column */}
-                                <div
-                                    className="grid gap-0 sticky left-0 z-30 bg-background border-r shadow-sm"
-                                    style={{
-                                        gridTemplateRows: `repeat(${timeSlots.length}, ${currentPixelsPer30Min}px)`,
-                                    }}
-                                >
-                                    {timeSlots.map((slot, index) => (
+                                {/* Time Slots */}
+                                <div>
+                                    {timeSlots.map((slot) => (
                                         <div
                                             key={slot.time}
-                                            className={cn(
-                                                'px-3 py-2 text-xs text-muted-foreground text-right font-medium border-b border-border/50 bg-background/95',
-                                                index === 0 && 'rounded-tl-lg'
-                                            )}
+                                            className="px-3 py-2 text-xs text-muted-foreground text-right font-medium border-b border-border/50 bg-background"
+                                            style={{ height: `${currentPixelsPer30Min}px` }}
                                         >
                                             {slot.time}
                                         </div>
                                     ))}
                                 </div>
+                            </div>
 
-                                {/* Day columns */}
-                                {DAYS.map((day, dayIndex) => {
-                                    const dayEntries = entriesByDay[dayIndex] || []
-                                    const overlapGroups = groupOverlappingEntries(dayEntries)
-                                    const maxConcurrent = maxConcurrentByDay[dayIndex]
+                            {/* --- RIGHT CONTENT (DAYS) --- */}
+                            <div className="flex-1">
+                                <div
+                                    className="grid"
+                                    style={{
+                                        gridTemplateColumns: `${DAYS.map((_, dayIndex) =>
+                                            `repeat(${maxConcurrentByDay[dayIndex]}, minmax(${minColumnWidth}px, 1fr))`
+                                        ).join(' ')}`,
+                                    }}
+                                >
+                                    {/* Header Row */}
+                                    <div
+                                        className="sticky top-0 z-40 h-[60px] grid bg-card border-b shadow-sm"
+                                        style={{
+                                            gridColumn: `1 / -1`,
+                                            gridTemplateColumns: 'subgrid'
+                                        }}
+                                    >
+                                        {DAYS.map((day, dayIndex) => (
+                                            <div
+                                                key={day}
+                                                className="font-semibold text-sm text-center p-3 border-l first:border-l-0 border-border/30 flex items-center justify-center"
+                                                style={{
+                                                    gridColumn: `span ${maxConcurrentByDay[dayIndex]}`,
+                                                }}
+                                            >
+                                                <div className="bg-primary/10 rounded-lg py-1 px-2">
+                                                    {day}
+                                                    {maxConcurrentByDay[dayIndex] > 1 && (
+                                                        <span className="ml-2 text-xs opacity-60">
+                                                            ({maxConcurrentByDay[dayIndex]})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                    return (
+                                    {/* Body Row - Classes */}
+                                    <div
+                                        className="grid relative"
+                                        style={{
+                                            gridColumn: `1 / -1`,
+                                            gridTemplateColumns: 'subgrid',
+                                            gridTemplateRows: `repeat(${timeSlots.length}, ${currentPixelsPer30Min}px)`
+                                        }}
+                                    >
+                                        {/* Background Grid Lines */}
                                         <div
-                                            key={day}
-                                            className="relative border-l border-border/30"
+                                            className="absolute inset-0 z-0 pointer-events-none"
                                             style={{
-                                                gridColumn: `span ${maxConcurrent}`,
+                                                gridColumn: `1 / -1`,
+                                                gridRow: `1 / -1`,
                                                 display: 'grid',
-                                                gridTemplateColumns: `repeat(${maxConcurrent}, 1fr)`,
-                                                gridTemplateRows: `repeat(${timeSlots.length}, ${currentPixelsPer30Min}px)`,
-                                                gap: '0',
+                                                gridTemplateRows: 'subgrid'
                                             }}
                                         >
-                                            {/* Background grid lines */}
                                             {timeSlots.map((_, slotIndex) => (
                                                 <div
                                                     key={slotIndex}
-                                                    className="border-b border-border/30 bg-background"
-                                                    style={{
-                                                        gridColumn: `1 / span ${maxConcurrent}`,
-                                                        gridRow: `${slotIndex + 1}`,
-                                                    }}
+                                                    className="border-b border-border/30 w-full"
+                                                    style={{ gridRow: `${slotIndex + 1}` }}
                                                 />
                                             ))}
-
-                                            {/* Class blocks */}
-                                            {overlapGroups.map((group, groupIndex) =>
-                                                group.entries.map((entry, entryIndex) => {
-                                                    const { startRow, endRow } = getGridRowPosition(
-                                                        entry.start_time,
-                                                        entry.end_time
-                                                    )
-                                                    const color = getColorForCourse(entry.course.code)
-
-                                                    return (
-                                                        <div
-                                                            key={`${entry.id}-${groupIndex}-${entryIndex}`}
-                                                            className={cn(
-                                                                'm-1 rounded-lg border-2 p-3 transition-all hover:shadow-lg hover:scale-[1.02] hover:z-10 cursor-pointer',
-                                                                color
-                                                            )}
-                                                            style={{
-                                                                gridColumn: `${entryIndex + 1}`,
-                                                                gridRow: `${startRow} / ${endRow}`,
-                                                                fontSize: `${12 * zoomLevel}px`
-                                                            }}
-                                                            title={`${entry.course.name}\n${entry.section.name}\n${entry.teacher.name}\n${entry.room.code}\n${formatTime12Hour(
-                                                                entry.start_time
-                                                            )} - ${formatTime12Hour(entry.end_time)}`}
-                                                        >
-                                                            <p className="font-bold text-[1.15em] leading-tight mb-1 line-clamp-2">
-                                                                {entry.course.name}
-                                                            </p>
-                                                            <p className="text-[0.9em] font-semibold opacity-90 mb-1">
-                                                                Sec {entry.section.code}
-                                                            </p>
-                                                            <div className="flex items-center gap-1 text-[0.85em] opacity-85 line-clamp-1 mb-0.5">
-                                                                <GraduationCap className="h-[1em] w-[1em] shrink-0" />
-                                                                <span>{entry.section.name}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1 text-[0.85em] opacity-80 line-clamp-1 mb-0.5">
-                                                                <UserRound className="h-[1em] w-[1em] shrink-0" />
-                                                                <span>{entry.teacher.name}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1 text-[0.85em] opacity-75 line-clamp-1 mb-0.5">
-                                                                <MapPin className="h-[1em] w-[1em] shrink-0" />
-                                                                <span>{entry.room.code}</span>
-                                                            </div>
-                                                            <p className="text-[0.8em] opacity-70 mt-2 pt-2 border-t border-current/20">
-                                                                {formatTime12Hour(entry.start_time)} -{' '}
-                                                                {formatTime12Hour(entry.end_time)}
-                                                            </p>
-                                                        </div>
-                                                    )
-                                                })
-                                            )}
                                         </div>
-                                    )
-                                })}
+
+                                        {/* Day Columns */}
+                                        {DAYS.map((day, dayIndex) => {
+                                            const dayEntries = entriesByDay[dayIndex] || []
+                                            const overlapGroups = groupOverlappingEntries(dayEntries)
+                                            const colSpan = maxConcurrentByDay[dayIndex]
+
+                                            return (
+                                                <div
+                                                    key={day}
+                                                    className="border-l first:border-l-0 border-border/30 z-10"
+                                                    style={{
+                                                        gridColumn: `span ${colSpan}`,
+                                                        gridRow: `1 / -1`,
+                                                        display: 'grid',
+                                                        gridTemplateColumns: `repeat(${colSpan}, 1fr)`,
+                                                        gridTemplateRows: 'subgrid'
+                                                    }}
+                                                >
+                                                    {overlapGroups.map((group, groupIndex) =>
+                                                        group.entries.map((entry, entryIndex) => {
+                                                            const { startRow, endRow } = getGridRowPosition(
+                                                                entry.start_time,
+                                                                entry.end_time
+                                                            )
+                                                            const color = getColorForCourse(entry.course.code)
+
+                                                            return (
+                                                                <div
+                                                                    key={`${entry.id}-${groupIndex}-${entryIndex}`}
+                                                                    className={cn(
+                                                                        'relative m-[1px] p-[3px] rounded-sm border-l-[3px] shadow-sm transition-all hover:shadow-md hover:scale-[1.01] hover:z-20 cursor-pointer overflow-hidden flex flex-col justify-between group',
+                                                                        color
+                                                                    )}
+                                                                    style={{
+                                                                        gridColumn: `${entryIndex + 1}`,
+                                                                        gridRow: `${startRow} / ${endRow}`,
+                                                                        fontSize: `${11 * zoomLevel}px`
+                                                                    }}
+                                                                    title={`${entry.course.name}\n${entry.section.name}\n${entry.teacher.name}\n${entry.room.code}\n${formatTime12Hour(
+                                                                        entry.start_time
+                                                                    )} - ${formatTime12Hour(entry.end_time)}`}
+                                                                >
+                                                                    {/* Header: Course Name */}
+                                                                    <div className="font-bold text-[1.05em] leading-[1.1] line-clamp-2 mb-[2px]">
+                                                                        {entry.course.name}
+                                                                    </div>
+
+                                                                    {/* Body: Metadata - Ultra compact vertical layout */}
+                                                                    <div className="space-y-[1px] mt-auto text-[0.9em]">
+                                                                        {/* Room */}
+                                                                        <div className="flex items-center gap-[2px] font-medium opacity-90">
+                                                                            <MapPin className="h-[0.85em] w-[0.85em] shrink-0 opacity-70" />
+                                                                            <span className="leading-none truncate">{entry.room.code}</span>
+                                                                        </div>
+
+                                                                        {/* Section */}
+                                                                        <div className="flex items-center gap-[2px] opacity-85">
+                                                                            <GraduationCap className="h-[0.85em] w-[0.85em] shrink-0 opacity-70" />
+                                                                            <span className="leading-none font-semibold truncate">{entry.section.code}</span>
+                                                                        </div>
+
+                                                                        {/* Teacher */}
+                                                                        <div className="flex items-center gap-[2px] opacity-75">
+                                                                            <UserRound className="h-[0.8em] w-[0.8em] shrink-0 opacity-70" />
+                                                                            <span className="truncate leading-none text-[0.95em]">{entry.teacher.name}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Hover Time Badge */}
+                                                                    <div className="absolute top-[2px] right-[2px] opacity-0 group-hover:opacity-100 transition-opacity bg-foreground/90 text-background text-[0.75em] px-[3px] py-[1px] rounded-[2px] shadow-sm font-medium pointer-events-none backdrop-blur-sm">
+                                                                        {formatTime12Hour(entry.start_time)}
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
