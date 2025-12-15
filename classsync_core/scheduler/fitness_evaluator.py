@@ -15,32 +15,45 @@ from classsync_core.utils import slots_overlap, time_to_minutes
 class FitnessEvaluator:
     """
     Evaluates chromosome fitness based on hard and soft constraints.
-    
+
     Fitness Score Range: 0-1000 (higher is better)
     - Hard constraints: Must be 0 violations (else chromosome is infeasible)
     - Soft constraints: Weighted sum of penalties
     """
-    
-    def __init__(self, config: GAConfig, rooms_df: pd.DataFrame):
+
+    def __init__(
+        self,
+        config: GAConfig,
+        rooms_df: pd.DataFrame,
+        teacher_constraints: list = None,
+        room_constraints: list = None
+    ):
         """
         Initialize evaluator.
-        
+
         Args:
             config: GA configuration with constraint weights
             rooms_df: DataFrame with room information (Room_Code, Room_Type, Capacity)
+            teacher_constraints: List of teacher availability constraints
+            room_constraints: List of room availability constraints
         """
         self.config = config
         self.rooms_df = rooms_df
-        
+        self.teacher_constraints = teacher_constraints or []
+        self.room_constraints = room_constraints or []
+
+        # Build constraint indexes for fast lookup
+        self._build_constraint_indexes()
+
         # Create room lookup dictionaries
         self.room_types = dict(zip(
-            rooms_df['Room_Code'], 
+            rooms_df['Room_Code'],
             rooms_df['Room_Type']
         ))
-        
+
         if 'Capacity' in rooms_df.columns:
             self.room_capacities = dict(zip(
-                rooms_df['Room_Code'], 
+                rooms_df['Room_Code'],
                 rooms_df['Capacity']
             ))
         else:
@@ -48,12 +61,33 @@ class FitnessEvaluator:
             self.room_capacities = {
                 room: 50 for room in rooms_df['Room_Code']
             }
-        
+
         # Extract building names from room codes (e.g., "SB 003" -> "SB")
         self.room_buildings = {}
         for room in rooms_df['Room_Code']:
             building = room.split()[0] if ' ' in room else room[:2]
             self.room_buildings[room] = building
+
+    def _build_constraint_indexes(self):
+        """Build indexes for fast constraint lookup."""
+        # Teacher constraints
+        self.teacher_blocked_slots = defaultdict(list)  # teacher_id -> [(day, start, end, is_hard, weight)]
+        self.teacher_day_offs = defaultdict(list)  # teacher_id -> [(day, is_hard, weight)]
+
+        for tc in self.teacher_constraints:
+            teacher_id = tc['teacher_id']
+            constraint_type = tc['constraint_type']
+            is_hard = tc.get('is_hard', False)
+            weight = tc.get('weight', 5)
+
+            if constraint_type == 'blocked_slot':
+                self.teacher_blocked_slots[teacher_id].append(
+                    (tc.get('day'), tc.get('start_time'), tc.get('end_time'), is_hard, weight)
+                )
+            elif constraint_type == 'day_off':
+                days = tc.get('days', [tc.get('day')] if tc.get('day') else [])
+                for day in days:
+                    self.teacher_day_offs[teacher_id].append((day, is_hard, weight))
     
     def evaluate(self, chromosome: Chromosome) -> float:
         """
@@ -101,7 +135,10 @@ class FitnessEvaluator:
             'invalid_durations': 0,
             'blocked_windows': 0,
             'lab_contiguity': 0,
-            'missing_assignments': 0
+            'missing_assignments': 0,
+            'teacher_blocked_slots': 0,
+            'teacher_day_offs': 0,
+            'lock_violations': 0
         }
         
         # Check for unassigned sessions
@@ -158,7 +195,90 @@ class FitnessEvaluator:
         # Check lab contiguity (labs must be 180 min continuous)
         lab_violations = self._check_lab_contiguity(chromosome)
         violations['lab_contiguity'] = lab_violations
-        
+
+        # Check teacher blocked slots (hard constraints only)
+        teacher_blocked_violations = self._check_teacher_blocked_slots(chromosome)
+        violations['teacher_blocked_slots'] = teacher_blocked_violations
+
+        # Check teacher day-offs (hard constraints only)
+        teacher_dayoff_violations = self._check_teacher_day_offs(chromosome)
+        violations['teacher_day_offs'] = teacher_dayoff_violations
+
+        # Check lock violations (genes that were modified from their locked values)
+        lock_violations = self._check_lock_violations(chromosome)
+        violations['lock_violations'] = lock_violations
+
+        return violations
+
+    def _check_teacher_blocked_slots(self, chromosome: Chromosome) -> int:
+        """Check for hard teacher blocked slot violations."""
+        violations = 0
+
+        for gene in chromosome.genes:
+            teacher_id = gene.teacher_id
+            if teacher_id not in self.teacher_blocked_slots:
+                continue
+
+            for day, start_time, end_time, is_hard, weight in self.teacher_blocked_slots[teacher_id]:
+                if not is_hard:
+                    continue  # Skip soft constraints here
+
+                if gene.day == day and slots_overlap(gene.start_time, gene.end_time, start_time, end_time):
+                    violations += 1
+                    chromosome.conflict_details.append(
+                        f"Teacher blocked slot violation: {gene.session_key} on {day} "
+                        f"({gene.start_time}-{gene.end_time}) conflicts with blocked "
+                        f"({start_time}-{end_time})"
+                    )
+
+        return violations
+
+    def _check_teacher_day_offs(self, chromosome: Chromosome) -> int:
+        """Check for hard teacher day-off violations."""
+        violations = 0
+
+        for gene in chromosome.genes:
+            teacher_id = gene.teacher_id
+            if teacher_id not in self.teacher_day_offs:
+                continue
+
+            for day, is_hard, weight in self.teacher_day_offs[teacher_id]:
+                if not is_hard:
+                    continue  # Skip soft constraints here
+
+                if gene.day == day:
+                    violations += 1
+                    chromosome.conflict_details.append(
+                        f"Teacher day-off violation: {gene.session_key} on {day} "
+                        f"(teacher has hard day-off constraint)"
+                    )
+
+        return violations
+
+    def _check_lock_violations(self, chromosome: Chromosome) -> int:
+        """Check that locked genes maintain their locked values."""
+        violations = 0
+
+        for gene in chromosome.genes:
+            if not gene.is_locked:
+                continue
+
+            if gene.day != gene.locked_day or gene.start_time != gene.locked_start_time:
+                violations += 1
+                chromosome.conflict_details.append(
+                    f"Lock violation: {gene.session_key} should be at "
+                    f"{gene.locked_day} {gene.locked_start_time} but is at "
+                    f"{gene.day} {gene.start_time}"
+                )
+
+            if gene.lock_type == 'full_lock' and gene.locked_room_id is not None:
+                if gene.room_id != gene.locked_room_id:
+                    violations += 1
+                    chromosome.conflict_details.append(
+                        f"Lock violation: {gene.session_key} room should be "
+                        f"{gene.locked_room_id} but is {gene.room_id}"
+                    )
+
         return violations
     
     def _check_resource_overlaps(

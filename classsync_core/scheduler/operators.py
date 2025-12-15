@@ -139,6 +139,7 @@ class GeneticOperators:
         """
         Apply mutation to chromosome.
         Mutation rate decreases over generations.
+        Locked genes are skipped (cannot be mutated).
 
         Args:
             chromosome: Chromosome to mutate
@@ -152,6 +153,10 @@ class GeneticOperators:
         mutated = chromosome.copy()
 
         for i, gene in enumerate(mutated.genes):
+            # Skip locked genes - they cannot be mutated
+            if gene.is_locked:
+                continue
+
             if random.random() < mutation_rate:
                 # Choose random mutation type
                 mutation_type = random.choice([

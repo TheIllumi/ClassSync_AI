@@ -39,28 +39,44 @@ class GAEngine:
         config: GAConfig,
         sessions_df: pd.DataFrame,
         rooms_df: pd.DataFrame,
+        teacher_constraints: list = None,
+        room_constraints: list = None,
+        locked_assignments: list = None,
         progress_callback: Optional[Callable] = None
     ):
         """
         Initialize GA engine.
-        
+
         Args:
             config: GA configuration
             sessions_df: Sessions to schedule
             rooms_df: Available rooms
+            teacher_constraints: List of teacher availability constraints
+            room_constraints: List of room availability constraints
+            locked_assignments: Pre-scheduled sessions to respect
             progress_callback: Optional callback for progress updates
         """
         self.config = config
         self.sessions_df = sessions_df
         self.rooms_df = rooms_df
+        self.teacher_constraints = teacher_constraints or []
+        self.room_constraints = room_constraints or []
+        self.locked_assignments = locked_assignments or []
         self.progress_callback = progress_callback
-        
-        # Initialize components
-        self.initializer = PopulationInitializer(config, sessions_df, rooms_df)
+
+        # Initialize components with constraints
+        self.initializer = PopulationInitializer(
+            config, sessions_df, rooms_df,
+            locked_assignments=self.locked_assignments
+        )
         self.operators = GeneticOperators(config, rooms_df)
         self.repair = RepairMechanism(config, rooms_df)
-        self.evaluator = FitnessEvaluator(config, rooms_df)
-        
+        self.evaluator = FitnessEvaluator(
+            config, rooms_df,
+            teacher_constraints=self.teacher_constraints,
+            room_constraints=self.room_constraints
+        )
+
         # Statistics tracking
         self.best_fitness_history = []
         self.avg_fitness_history = []

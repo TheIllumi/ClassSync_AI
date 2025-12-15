@@ -101,6 +101,9 @@ class TimetableOptimizer:
         institution_id: int,
         population_size: int = 50,
         generations: int = 150,
+        teacher_constraints: Optional[list] = None,
+        room_constraints: Optional[list] = None,
+        locked_assignments: Optional[list] = None,
         progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
@@ -111,6 +114,9 @@ class TimetableOptimizer:
             institution_id: Institution ID
             population_size: GA population size
             generations: Number of GA generations
+            teacher_constraints: List of teacher availability constraints
+            room_constraints: List of room availability constraints
+            locked_assignments: Pre-scheduled sessions to respect
             progress_callback: Optional progress update function
 
         Returns:
@@ -123,11 +129,17 @@ class TimetableOptimizer:
         rooms_df = self._prepare_rooms_data(db, institution_id)
 
         print(f"[Optimizer] Loaded {len(sessions_df)} sessions and {len(rooms_df)} rooms")
+        if teacher_constraints:
+            print(f"[Optimizer] Teacher constraints: {len(teacher_constraints)}")
+        if locked_assignments:
+            print(f"[Optimizer] Locked assignments: {len(locked_assignments)}")
 
         # 2. Run appropriate strategy
         if self.strategy == 'ga':
             result = self._run_ga(
-                sessions_df, rooms_df, population_size, generations, progress_callback
+                sessions_df, rooms_df, population_size, generations,
+                teacher_constraints, room_constraints, locked_assignments,
+                progress_callback
             )
         elif self.strategy == 'heuristic':
             result = self._run_heuristic(sessions_df, rooms_df)
@@ -164,6 +176,9 @@ class TimetableOptimizer:
         rooms_df: pd.DataFrame,
         population_size: int,
         generations: int,
+        teacher_constraints: Optional[list],
+        room_constraints: Optional[list],
+        locked_assignments: Optional[list],
         progress_callback: Optional[callable]
     ) -> Dict:
         """Run full genetic algorithm."""
@@ -172,6 +187,9 @@ class TimetableOptimizer:
             config=self.ga_config,
             sessions_df=sessions_df,
             rooms_df=rooms_df,
+            teacher_constraints=teacher_constraints or [],
+            room_constraints=room_constraints or [],
+            locked_assignments=locked_assignments or [],
             progress_callback=progress_callback
         )
 

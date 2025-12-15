@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from classsync_api.config import settings
-from classsync_api.routers import health, datasets, constraints, scheduler
+from classsync_api.routers import health, datasets, constraints, scheduler, teachers
 
 
 # Create FastAPI app instance
@@ -34,6 +34,7 @@ app.include_router(health.router, prefix=settings.api_prefix)
 app.include_router(datasets.router, prefix=settings.api_prefix)
 app.include_router(constraints.router, prefix=settings.api_prefix)
 app.include_router(scheduler.router, prefix=settings.api_prefix)
+app.include_router(teachers.router, prefix=settings.api_prefix)
 
 @app.get("/")
 async def root():

@@ -6,6 +6,7 @@ import {
     Calendar,
     Settings,
     PanelLeft,
+    Sparkles,
     // FileSpreadsheet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button'
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Upload Datasets', href: '/upload', icon: Upload },
+    { name: 'Generate', href: '/generate', icon: Sparkles },
     { name: 'Timetables', href: '/timetables', icon: Calendar },
     // { name: 'Export', href: '/export', icon: FileSpreadsheet },
     { name: 'Settings', href: '/settings', icon: Settings },

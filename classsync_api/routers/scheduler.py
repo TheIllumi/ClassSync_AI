@@ -10,9 +10,10 @@ from sqlalchemy.orm import joinedload
 
 from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id
-from classsync_api.schemas import MessageResponse, TimetableUpdate
+from classsync_api.schemas import MessageResponse, TimetableUpdate, GenerateRequest
 from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry
 from classsync_core.optimizer import TimetableOptimizer
+from fastapi import Body
 
 from fastapi.responses import FileResponse
 import tempfile
@@ -29,7 +30,7 @@ router = APIRouter(
 
 @router.post("/generate")
 async def generate_timetable(
-        constraint_config_id: Optional[int] = None,
+        request: GenerateRequest = Body(default=GenerateRequest()),
         db: Session = Depends(get_db),
         institution_id: str = Depends(get_institution_id)
 ):
@@ -37,11 +38,18 @@ async def generate_timetable(
     Generate an optimized timetable using genetic algorithm.
 
     Args:
-        constraint_config_id: Optional constraint configuration to use
+        request: Generation configuration including:
+            - constraint_config_id: Which constraint profile to use
+            - teacher_constraints: List of teacher availability constraints
+            - room_constraints: List of room availability constraints
+            - locked_assignments: Pre-scheduled sessions to respect
+            - population_size: GA population size (10-100)
+            - generations: Number of GA generations (50-300)
+            - target_fitness: Target fitness score (50-100)
     """
     # Get constraint config
-    if constraint_config_id:
-        config = db.query(ConstraintConfig).get(constraint_config_id)
+    if request.constraint_config_id:
+        config = db.query(ConstraintConfig).get(request.constraint_config_id)
         if not config:
             raise HTTPException(status_code=404, detail="Constraint config not found")
     else:
@@ -57,13 +65,21 @@ async def generate_timetable(
     # Initialize optimizer
     optimizer = TimetableOptimizer(config)
 
+    # Convert constraints to dict format for the optimizer
+    teacher_constraints = [tc.model_dump() for tc in request.teacher_constraints]
+    room_constraints = [rc.model_dump() for rc in request.room_constraints]
+    locked_assignments = [la.model_dump() for la in request.locked_assignments]
+
     # Generate timetable
     try:
         result = optimizer.generate_timetable(
             db=db,
             institution_id=1,
-            population_size=30,
-            generations=100
+            population_size=request.population_size,
+            generations=request.generations,
+            teacher_constraints=teacher_constraints,
+            room_constraints=room_constraints,
+            locked_assignments=locked_assignments
         )
 
         return {
@@ -72,7 +88,14 @@ async def generate_timetable(
             "generation_time": result['generation_time'],
             "sessions_scheduled": result['sessions_scheduled'],
             "sessions_total": result['sessions_total'],
-            "fitness_score": result['fitness_score']
+            "fitness_score": result['fitness_score'],
+            "hard_violations": result.get('hard_violations'),
+            "soft_scores": result.get('soft_scores'),
+            "constraints_applied": {
+                "teacher_constraints": len(teacher_constraints),
+                "room_constraints": len(room_constraints),
+                "locked_assignments": len(locked_assignments)
+            }
         }
 
     except Exception as e:

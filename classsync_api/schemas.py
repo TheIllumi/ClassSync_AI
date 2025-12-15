@@ -358,3 +358,102 @@ class ConstraintConfigListItem(BaseModel):
 class TimetableUpdate(BaseModel):
     """Schema for updating a timetable."""
     name: str = Field(..., min_length=1, max_length=255)
+
+
+# ============================================================================
+# TEACHER CONSTRAINT SCHEMAS (for Generate Timetable)
+# ============================================================================
+
+class ConstraintTypeEnum(str, Enum):
+    """Types of teacher/room constraints."""
+    BLOCKED_SLOT = "blocked_slot"
+    DAY_OFF = "day_off"
+    AVAILABLE_WINDOW = "available_window"
+    PREFERRED_SLOT = "preferred_slot"
+
+
+class TeacherConstraint(BaseModel):
+    """
+    Constraint for a specific teacher's availability.
+
+    Examples:
+    - blocked_slot: Teacher unavailable on Monday 9:00-12:00 (hard constraint)
+    - day_off: Teacher wants Fridays off (soft constraint with weight)
+    - available_window: Teacher only available 10:00-16:00 (hard constraint)
+    - preferred_slot: Teacher prefers afternoons (soft constraint with weight)
+    """
+    teacher_id: int
+    constraint_type: ConstraintTypeEnum
+    is_hard: bool = False  # Hard = must enforce, Soft = penalize violations
+    weight: int = Field(default=5, ge=1, le=10)  # Weight for soft constraints
+    day: Optional[str] = None  # For single-day constraints: "Monday", "Tuesday", etc.
+    days: Optional[List[str]] = None  # For multi-day constraints like day_off: ["Friday", "Saturday"]
+    start_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")  # "09:00"
+    end_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")  # "12:00"
+
+
+class RoomConstraint(BaseModel):
+    """
+    Constraint for a specific room's availability.
+    """
+    room_id: int
+    constraint_type: ConstraintTypeEnum
+    is_hard: bool = True  # Room constraints are usually hard
+    day: Optional[str] = None
+    days: Optional[List[str]] = None
+    start_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    end_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    reason: Optional[str] = None  # Optional reason for the constraint
+
+
+class LockTypeEnum(str, Enum):
+    """Types of locked assignments."""
+    TIME_ONLY = "time_only"  # Only day/time is locked, room can be assigned
+    FULL_LOCK = "full_lock"  # Day, time, and room are all locked
+
+
+class LockedAssignment(BaseModel):
+    """
+    Pre-scheduled session that must be respected during generation.
+
+    A locked assignment fixes a session to a specific day and time.
+    If lock_type is 'time_only', the optimizer will assign an appropriate room.
+    If lock_type is 'full_lock', the room is also fixed.
+    """
+    session_key: str  # Format: "COURSE_CODE-SECTION-T/L-SESSION_NUM"
+    course_id: int
+    section_id: int
+    teacher_id: int
+    day: str  # "Monday", "Tuesday", etc.
+    start_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")  # "09:00"
+    room_id: Optional[int] = None  # Required if lock_type is 'full_lock'
+    lock_type: LockTypeEnum = LockTypeEnum.TIME_ONLY
+
+
+class GenerateRequest(BaseModel):
+    """
+    Request body for timetable generation with constraints.
+
+    This allows users to specify teacher/room constraints and locked
+    assignments before generating a new timetable.
+    """
+    constraint_config_id: Optional[int] = None  # Which constraint profile to use
+    teacher_constraints: List[TeacherConstraint] = []
+    room_constraints: List[RoomConstraint] = []
+    locked_assignments: List[LockedAssignment] = []
+    population_size: int = Field(default=30, ge=10, le=100)
+    generations: int = Field(default=100, ge=50, le=300)
+    target_fitness: float = Field(default=85.0, ge=50.0, le=100.0)
+
+
+class GenerateResponse(BaseModel):
+    """Response after successful timetable generation."""
+    message: str
+    timetable_id: int
+    generation_time: float
+    sessions_scheduled: int
+    sessions_total: int
+    fitness_score: float
+    hard_violations: Optional[Dict[str, int]] = None
+    soft_scores: Optional[Dict[str, float]] = None
+    constraints_applied: Optional[Dict[str, Any]] = None

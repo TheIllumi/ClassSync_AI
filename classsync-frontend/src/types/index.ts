@@ -58,3 +58,109 @@ export interface ConstraintConfig {
     created_at: string
     updated_at: string
 }
+
+// Teacher types
+export interface Teacher {
+    id: number
+    code: string
+    name: string
+    email?: string
+    department?: string
+    time_preferences?: Record<string, any>
+    created_at?: string
+}
+
+// Constraint types for Generate Timetable
+export type ConstraintType = 'blocked_slot' | 'day_off' | 'available_window' | 'preferred_slot'
+
+export interface TeacherConstraint {
+    teacher_id: number
+    constraint_type: ConstraintType
+    is_hard: boolean
+    weight: number // 1-10 for soft constraints
+    day?: string // For single-day constraints: "Monday", "Tuesday", etc.
+    days?: string[] // For multi-day constraints like day_off: ["Friday", "Saturday"]
+    start_time?: string // "09:00"
+    end_time?: string // "12:00"
+}
+
+export interface RoomConstraint {
+    room_id: number
+    constraint_type: ConstraintType
+    is_hard: boolean
+    day?: string
+    days?: string[]
+    start_time?: string
+    end_time?: string
+    reason?: string
+}
+
+export type LockType = 'time_only' | 'full_lock'
+
+export interface LockedAssignment {
+    session_key: string
+    course_id: number
+    section_id: number
+    teacher_id: number
+    day: string
+    start_time: string
+    room_id?: number
+    lock_type: LockType
+}
+
+export interface GenerateRequest {
+    constraint_config_id?: number
+    teacher_constraints: TeacherConstraint[]
+    room_constraints: RoomConstraint[]
+    locked_assignments: LockedAssignment[]
+    population_size: number
+    generations: number
+    target_fitness: number
+}
+
+export interface GenerateResponse {
+    message: string
+    timetable_id: number
+    generation_time: number
+    sessions_scheduled: number
+    sessions_total: number
+    fitness_score: number
+    hard_violations?: Record<string, number>
+    soft_scores?: Record<string, number>
+    constraints_applied?: {
+        teacher_constraints: number
+        room_constraints: number
+        locked_assignments: number
+    }
+}
+
+// Room type for room constraints
+export interface Room {
+    id: number
+    code: string
+    name?: string
+    room_type: string
+    capacity?: number
+    building?: string
+    is_available: boolean
+}
+
+// Course and Section for locked assignments
+export interface Course {
+    id: number
+    code: string
+    name: string
+    course_type: string
+    credit_hours?: number
+    teacher_id: number
+}
+
+export interface Section {
+    id: number
+    code: string
+    name?: string
+    course_id: number
+    semester: string
+    year: number
+    student_count?: number
+}

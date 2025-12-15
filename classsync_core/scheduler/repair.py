@@ -33,6 +33,11 @@ class RepairMechanism:
         Returns:
             True if successfully repaired, False if unrepairable
         """
+        # FIRST: Restore locked genes to their fixed values
+        for gene in chromosome.genes:
+            if gene.is_locked:
+                gene.restore_lock()
+
         # Follow repair order from config
         for constraint_type in self.config.repair_order:
             if constraint_type == 'blocked_windows':
@@ -64,6 +69,10 @@ class RepairMechanism:
     def _repair_blocked_windows(self, chromosome: Chromosome) -> bool:
         """Move sessions out of blocked time windows."""
         for gene in chromosome.genes:
+            # Skip locked genes - they cannot be moved
+            if gene.is_locked:
+                continue
+
             if self.config.is_blocked(gene.day, gene.start_time, gene.end_time):
                 # Try to find nearby valid slot
                 repaired = self._find_alternative_slot(gene, chromosome)
@@ -74,6 +83,10 @@ class RepairMechanism:
     def _repair_invalid_start_times(self, chromosome: Chromosome) -> bool:
         """Snap start times to nearest allowed start time."""
         for gene in chromosome.genes:
+            # Skip locked genes - their time is fixed
+            if gene.is_locked:
+                continue
+
             if not self.config.is_valid_start_time(gene.start_time):
                 # Find nearest allowed start time
                 nearest = self._find_nearest_start_time(gene.start_time)
@@ -83,6 +96,10 @@ class RepairMechanism:
     def _repair_lab_contiguity(self, chromosome: Chromosome) -> bool:
         """Ensure lab sessions are 180 minutes."""
         for gene in chromosome.genes:
+            # Skip locked genes
+            if gene.is_locked:
+                continue
+
             if gene.is_lab and gene.duration_minutes != 180:
                 # Force to 180 minutes
                 gene.duration_minutes = 180
@@ -116,8 +133,16 @@ class RepairMechanism:
             # Pick random conflict
             conflict_genes = random.choice(conflicts)
 
-            # Try to move one of the conflicting genes
-            for gene in conflict_genes:
+            # Try to move one of the conflicting genes (skip locked ones)
+            movable_genes = [g for g in conflict_genes if not g.is_locked]
+
+            if not movable_genes:
+                # Both genes are locked - this conflict cannot be resolved
+                # Skip this conflict but continue with others
+                conflicts.remove(conflict_genes)
+                continue
+
+            for gene in movable_genes:
                 # Find gene index in chromosome
                 gene_idx = next(
                     (i for i, g in enumerate(chromosome.genes) if g.session_key == gene.session_key),
@@ -192,6 +217,10 @@ class RepairMechanism:
         Returns:
             True if alternative found and applied
         """
+        # Cannot move locked genes
+        if gene.is_locked:
+            return False
+
         attempts = 0
         max_attempts = self.config.max_repair_attempts
 

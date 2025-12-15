@@ -12,10 +12,20 @@ from classsync_core.utils import calculate_slot_end_time, time_to_minutes, slots
 
 class PopulationInitializer:
 
-    def __init__(self, config: GAConfig, sessions_df: pd.DataFrame, rooms_df: pd.DataFrame):
+    def __init__(
+        self,
+        config: GAConfig,
+        sessions_df: pd.DataFrame,
+        rooms_df: pd.DataFrame,
+        locked_assignments: list = None
+    ):
         self.config = config
         self.sessions_df = sessions_df
         self.rooms_df = rooms_df
+        self.locked_assignments = locked_assignments or []
+
+        # Build locked assignments map for quick lookup
+        self.locked_map = {la['session_key']: la for la in self.locked_assignments}
 
         # Separate lab and theory rooms
         self.lab_rooms = rooms_df[
@@ -77,20 +87,27 @@ class PopulationInitializer:
 
 
     def _create_random_chromosome(self) -> Chromosome:
-        """Create chromosome with completely random assignments."""
+        """Create chromosome with completely random assignments (respecting locks)."""
         genes = []
         day_end_minutes = time_to_minutes(self.config.day_end_time)
 
         for _, session in self.sessions_df.iterrows():
+            session_key = session['Session_Key']
             duration = session['Duration_Minutes']
-            
+
+            # Check if this session has a locked assignment
+            if session_key in self.locked_map:
+                gene = self._create_locked_gene(session, self.locked_map[session_key])
+                genes.append(gene)
+                continue
+
             # Filter valid slots for this duration
             valid_slots = []
             for day, start in self.time_slots:
                 end_time = calculate_slot_end_time(start, duration)
                 if time_to_minutes(end_time) <= day_end_minutes:
                     valid_slots.append((day, start))
-            
+
             # If no valid slots (unlikely but possible for very long sessions), fall back to all
             if not valid_slots:
                 valid_slots = self.time_slots
@@ -133,27 +150,94 @@ class PopulationInitializer:
 
         return Chromosome(genes)
 
+    def _create_locked_gene(self, session, lock: dict) -> Gene:
+        """Create a gene with locked attributes from a lock assignment."""
+        day = lock['day']
+        start_time = lock['start_time']
+        lock_type = lock.get('lock_type', 'time_only')
+        room_id = lock.get('room_id')
+        room_code = None
+
+        # If room is specified in lock, use it
+        if room_id is not None:
+            room_rows = self.rooms_df[self.rooms_df['Room_ID'] == room_id]
+            if not room_rows.empty:
+                room_code = room_rows.iloc[0]['Room_Code']
+
+        # If no room specified or not found, assign appropriate room type
+        if room_code is None:
+            if session['Is_Lab']:
+                room_code = random.choice(self.lab_rooms) if self.lab_rooms else \
+                    random.choice(self.rooms_df['Room_Code'].tolist())
+            else:
+                room_code = random.choice(self.theory_rooms) if self.theory_rooms else \
+                    random.choice(self.rooms_df['Room_Code'].tolist())
+            room_row = self.rooms_df[self.rooms_df['Room_Code'] == room_code].iloc[0]
+            room_id = room_row.get('Room_ID', hash(room_code) % 10000)
+
+        return Gene(
+            session_key=session['Session_Key'],
+            course_id=session['Course_ID'],
+            course_code=session['Course_Code'],
+            course_name=session['Course_Name'],
+            section_id=session['Section_ID'],
+            section_code=session['Section_Code'],
+            teacher_id=session['Teacher_ID'],
+            teacher_name=session['Instructor'],
+            duration_minutes=session['Duration_Minutes'],
+            is_lab=session['Is_Lab'],
+            session_number=session['Session_Number'],
+            day=day,
+            start_time=start_time,
+            room_id=room_id,
+            room_code=room_code,
+            # Lock attributes
+            is_locked=True,
+            lock_type=lock_type,
+            locked_day=day,
+            locked_start_time=start_time,
+            locked_room_id=room_id if lock_type == 'full_lock' else None
+        )
+
 
     def _create_heuristic_chromosome(self) -> Chromosome:
         """
         Create chromosome using greedy heuristic.
         Places sessions one-by-one avoiding conflicts.
+        Locked assignments are placed first with their fixed values.
         """
         genes = []
         day_end_minutes = time_to_minutes(self.config.day_end_time)
 
         # Track used resources with time ranges
         # Structure: {id: {day: [(start, end)]}}
-        teacher_schedule = {} 
+        teacher_schedule = {}
         section_schedule = {}
         room_schedule = {}  # Added room schedule tracking
 
-        # Sort sessions by constraint difficulty (labs first, then longer durations)
-        sessions = self.sessions_df.sort_values(
-            by=['Is_Lab', 'Duration_Minutes'], 
+        # STEP 1: Place locked assignments first
+        for _, session in self.sessions_df.iterrows():
+            session_key = session['Session_Key']
+            if session_key in self.locked_map:
+                lock = self.locked_map[session_key]
+                gene = self._create_locked_gene(session, lock)
+                genes.append(gene)
+
+                # Register locked slots as occupied
+                self._add_booking(teacher_schedule, session['Teacher_ID'], gene.day, gene.start_time, gene.end_time)
+                self._add_booking(section_schedule, session['Section_ID'], gene.day, gene.start_time, gene.end_time)
+                if gene.room_id:
+                    self._add_booking(room_schedule, gene.room_code, gene.day, gene.start_time, gene.end_time)
+
+        # Sort remaining (non-locked) sessions by constraint difficulty (labs first, then longer durations)
+        locked_keys = set(self.locked_map.keys())
+        remaining_sessions = self.sessions_df[~self.sessions_df['Session_Key'].isin(locked_keys)]
+        sessions = remaining_sessions.sort_values(
+            by=['Is_Lab', 'Duration_Minutes'],
             ascending=[False, False]
         )
 
+        # STEP 2: Place remaining sessions avoiding conflicts
         for _, session in sessions.iterrows():
             duration = session['Duration_Minutes']
             

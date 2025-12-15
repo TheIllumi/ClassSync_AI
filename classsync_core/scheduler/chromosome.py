@@ -14,20 +14,25 @@ from copy import deepcopy
 class Gene:
     """
     One gene = one session assignment.
-    
+
     Fixed attributes (from problem definition):
     - session_key: Unique identifier
     - course_id, section_id, teacher_id: Foreign keys
     - duration_minutes: How long the session lasts
     - is_lab: Whether this is a lab session
     - session_number: Which session of the course (1, 2, 3...)
-    
+
     Mutable attributes (GA optimizes these):
     - day: Which weekday
     - start_time: When it starts (must be in allowed_start_times)
     - room_id: Which room
+
+    Lock attributes (for pre-scheduled sessions):
+    - is_locked: Whether this gene is locked (cannot be mutated)
+    - lock_type: 'time_only' (room can change) or 'full_lock' (nothing changes)
+    - locked_day, locked_start_time, locked_room_id: Original locked values
     """
-    
+
     # Fixed attributes
     session_key: str
     course_id: int
@@ -40,16 +45,23 @@ class Gene:
     duration_minutes: int
     is_lab: bool
     session_number: int
-    
+
     # Mutable attributes (what GA optimizes)
     day: str = None
     start_time: str = None
     room_id: Optional[int] = None
     room_code: Optional[str] = None
-    
+
     # Computed attributes
     end_time: Optional[str] = None
     duration_slots: int = 0  # Number of 30-min slots
+
+    # Lock attributes (for pre-scheduled sessions)
+    is_locked: bool = False
+    lock_type: Optional[str] = None  # 'time_only' or 'full_lock'
+    locked_day: Optional[str] = None
+    locked_start_time: Optional[str] = None
+    locked_room_id: Optional[int] = None
     
     def __post_init__(self):
         """Calculate derived fields."""
@@ -77,6 +89,34 @@ class Gene:
         """Update room assignment."""
         self.room_id = room_id
         self.room_code = room_code
+
+    def can_mutate_time(self) -> bool:
+        """Check if this gene's time can be mutated."""
+        return not self.is_locked
+
+    def can_mutate_room(self) -> bool:
+        """Check if this gene's room can be mutated."""
+        return not self.is_locked or self.lock_type == 'time_only'
+
+    def restore_lock(self):
+        """Restore locked values if this gene was accidentally modified."""
+        if not self.is_locked:
+            return
+
+        # Always restore time for locked genes
+        self.day = self.locked_day
+        self.start_time = self.locked_start_time
+
+        # Recalculate end time
+        from classsync_core.utils import calculate_slot_end_time
+        self.end_time = calculate_slot_end_time(
+            self.locked_start_time,
+            self.duration_minutes
+        )
+
+        # For full locks, also restore room
+        if self.lock_type == 'full_lock' and self.locked_room_id is not None:
+            self.room_id = self.locked_room_id
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for database persistence."""
@@ -143,15 +183,21 @@ class Chromosome:
                 day=g.day,
                 start_time=g.start_time,
                 room_id=g.room_id,
-                room_code=g.room_code
+                room_code=g.room_code,
+                # Copy lock attributes
+                is_locked=g.is_locked,
+                lock_type=g.lock_type,
+                locked_day=g.locked_day,
+                locked_start_time=g.locked_start_time,
+                locked_room_id=g.locked_room_id
             )
             for g in self.genes
         ]
-        
+
         new_chromosome = Chromosome(new_genes)
         new_chromosome.fitness = self.fitness
         new_chromosome.is_feasible = self.is_feasible
-        
+
         return new_chromosome
     
     def get_gene_by_index(self, index: int) -> Gene:

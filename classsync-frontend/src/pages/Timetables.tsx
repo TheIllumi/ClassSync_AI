@@ -25,31 +25,14 @@ import { formatDateTime } from '@/lib/utils'
 export function Timetables() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
-    const [, setGeneratingId] = useState<number | null>(null)
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingName, setEditingName] = useState('')
-    const [showGenerateDialog, setShowGenerateDialog] = useState(false)
     const [activeMenu, setActiveMenu] = useState<number | null>(null)
 
     // Fetch timetables
     const { data: timetables, isLoading } = useQuery({
         queryKey: ['timetables'],
         queryFn: () => timetablesApi.list().then(res => res.data),
-    })
-
-    // Generate mutation
-    const generateMutation = useMutation({
-        mutationFn: () => timetablesApi.generate(),
-        onMutate: () => {
-            setGeneratingId(-1) // Temporary ID for new generation
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['timetables'] })
-            setGeneratingId(null)
-        },
-        onError: () => {
-            setGeneratingId(null)
-        },
     })
 
     // Delete mutation
@@ -89,7 +72,7 @@ export function Timetables() {
     })
 
     const handleGenerate = () => {
-        setShowGenerateDialog(true)
+        navigate('/generate')
     }
 
     const handleDelete = (id: number) => {
@@ -121,42 +104,13 @@ export function Timetables() {
                 </div>
                 <Button
                     onClick={handleGenerate}
-                    disabled={generateMutation.isPending}
                     size="lg"
                     className="shadow-md hover:shadow-xl transition-all"
                 >
-                    {generateMutation.isPending ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Generate New
-                        </>
-                    )}
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate New
                 </Button>
             </div>
-
-            {/* Generation Progress */}
-            {generateMutation.isPending && (
-                <Card className="border-primary/50 bg-primary/5">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="relative">
-                                <div className="h-10 w-10 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-lg">Optimizing Schedule...</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Our AI is finding the best slots. This may take 2-3 minutes.
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
             {/* Timetables Grid */}
             {isLoading ? (
@@ -330,49 +284,6 @@ export function Timetables() {
                 </div>
             )}
             
-            {/* Generation Confirmation Modal */}
-            {showGenerateDialog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <Card className="w-full max-w-md shadow-2xl border-none ring-1 ring-border bg-card/95 backdrop-blur-xl">
-                        <CardHeader className="text-center pb-2">
-                            <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
-                                <Sparkles className="h-8 w-8 text-primary" />
-                            </div>
-                            <CardTitle className="text-xl">Start Optimization?</CardTitle>
-                            <CardDescription className="text-base">
-                                Ready to generate a new timetable.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-center">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                ClassSync AI will use genetic algorithms to find the best schedule. 
-                                This typically takes <strong>1-3 minutes</strong> depending on your dataset size.
-                            </p>
-                        </CardContent>
-                        <div className="flex items-center justify-center gap-3 p-6 pt-2">
-                            <Button 
-                                variant="outline" 
-                                size="lg"
-                                className="w-full"
-                                onClick={() => setShowGenerateDialog(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button 
-                                size="lg"
-                                className="w-full shadow-lg"
-                                onClick={() => {
-                                    generateMutation.mutate()
-                                    setShowGenerateDialog(false)
-                                }}
-                            >
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                Start Engine
-                            </Button>
-                        </div>
-                    </Card>
-                </div>
-            )}
         </div>
     )
 }
