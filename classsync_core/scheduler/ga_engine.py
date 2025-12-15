@@ -42,7 +42,8 @@ class GAEngine:
         teacher_constraints: list = None,
         room_constraints: list = None,
         locked_assignments: list = None,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        random_seed: Optional[int] = None
     ):
         """
         Initialize GA engine.
@@ -55,6 +56,7 @@ class GAEngine:
             room_constraints: List of room availability constraints
             locked_assignments: Pre-scheduled sessions to respect
             progress_callback: Optional callback for progress updates
+            random_seed: Optional seed for reproducible results
         """
         self.config = config
         self.sessions_df = sessions_df
@@ -63,6 +65,7 @@ class GAEngine:
         self.room_constraints = room_constraints or []
         self.locked_assignments = locked_assignments or []
         self.progress_callback = progress_callback
+        self.random_seed = random_seed
 
         # Initialize components with constraints
         self.initializer = PopulationInitializer(
@@ -105,10 +108,15 @@ class GAEngine:
             }
         """
         start_time = time.time()
-        
+
+        # Set random seed for reproducibility (if provided)
+        if self.random_seed is not None:
+            random.seed(self.random_seed)
+            self._log(f"Random seed set to {self.random_seed} for reproducible results")
+
         pop_size = population_size or self.config.population_size
         max_gens = generations or self.config.generations
-        
+
         # 1. Initialize population
         self._log("Initializing population...")
         population = self.initializer.create_population(pop_size)

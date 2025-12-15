@@ -10,9 +10,17 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from classsync_core.scheduler import GAEngine, GAConfig, DEFAULT_GA_CONFIG
+from classsync_core.scheduler.validator import PreGAValidator, ValidationResult
 from classsync_core.models import (
     Timetable, TimetableEntry, Course, Teacher, Room, Section, ConstraintConfig, TimetableStatus, CourseType
 )
+
+
+class ValidationFailedError(Exception):
+    """Raised when pre-GA validation fails with hard errors."""
+    def __init__(self, validation_result: ValidationResult):
+        self.validation_result = validation_result
+        super().__init__(f"Pre-GA validation failed with {len(validation_result.errors)} errors")
 
 
 class TimetableOptimizer:
@@ -41,6 +49,7 @@ class TimetableOptimizer:
 
     def _build_ga_config(self, cc: ConstraintConfig) -> GAConfig:
         """Convert database ConstraintConfig to GAConfig."""
+        from classsync_core.utils import calculate_slot_end_time, time_to_minutes
 
         # Start with defaults
         config = GAConfig()
@@ -50,6 +59,18 @@ class TimetableOptimizer:
         config.day_start_time = cc.start_time
         config.day_end_time = cc.end_time
         config.slot_duration_minutes = cc.timeslot_duration_minutes
+
+        # Calculate allowed start times based on slot duration
+        allowed_starts = []
+        current_time = cc.start_time
+        day_end_minutes = time_to_minutes(cc.end_time)
+        
+        while time_to_minutes(current_time) < day_end_minutes:
+            allowed_starts.append(current_time)
+            # Move to next slot
+            current_time = calculate_slot_end_time(current_time, cc.timeslot_duration_minutes)
+        
+        config.allowed_start_times = allowed_starts
 
         # Parse blocked windows from JSON if present
         if cc.optional_constraints and isinstance(cc.optional_constraints, dict):
@@ -104,7 +125,8 @@ class TimetableOptimizer:
         teacher_constraints: Optional[list] = None,
         room_constraints: Optional[list] = None,
         locked_assignments: Optional[list] = None,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[callable] = None,
+        random_seed: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Generate optimized timetable.
@@ -118,6 +140,7 @@ class TimetableOptimizer:
             room_constraints: List of room availability constraints
             locked_assignments: Pre-scheduled sessions to respect
             progress_callback: Optional progress update function
+            random_seed: Optional seed for reproducible generation
 
         Returns:
             Dictionary with timetable results
@@ -131,15 +154,40 @@ class TimetableOptimizer:
         print(f"[Optimizer] Loaded {len(sessions_df)} sessions and {len(rooms_df)} rooms")
         if teacher_constraints:
             print(f"[Optimizer] Teacher constraints: {len(teacher_constraints)}")
+        if room_constraints:
+            print(f"[Optimizer] Room constraints: {len(room_constraints)}")
         if locked_assignments:
             print(f"[Optimizer] Locked assignments: {len(locked_assignments)}")
 
-        # 2. Run appropriate strategy
+        # 2. Pre-GA Validation (fail fast)
+        print("[Optimizer] Running pre-GA validation...")
+        validator = PreGAValidator(
+            config=self.ga_config,
+            sessions_df=sessions_df,
+            rooms_df=rooms_df,
+            teacher_constraints=teacher_constraints or [],
+            room_constraints=room_constraints or [],
+            locked_assignments=locked_assignments or []
+        )
+        validation_result = validator.validate()
+
+        if not validation_result.is_valid:
+            print(f"[Optimizer] Validation FAILED with {len(validation_result.errors)} errors")
+            for error in validation_result.errors:
+                print(f"  - {error.error_type}: {error.message}")
+            raise ValidationFailedError(validation_result)
+
+        if validation_result.warnings:
+            print(f"[Optimizer] Validation passed with {len(validation_result.warnings)} warnings")
+            for warning in validation_result.warnings:
+                print(f"  - {warning.error_type}: {warning.message}")
+
+        # 3. Run appropriate strategy
         if self.strategy == 'ga':
             result = self._run_ga(
                 sessions_df, rooms_df, population_size, generations,
                 teacher_constraints, room_constraints, locked_assignments,
-                progress_callback
+                progress_callback, random_seed
             )
         elif self.strategy == 'heuristic':
             result = self._run_heuristic(sessions_df, rooms_df)
@@ -150,7 +198,7 @@ class TimetableOptimizer:
         else:
             raise ValueError(f"Unknown strategy: {self.strategy}")
 
-        # 3. Save to database
+        # 4. Save to database
         timetable_id = self._save_to_database(
             db=db,
             institution_id=institution_id,
@@ -158,16 +206,87 @@ class TimetableOptimizer:
             generation_time=time.time() - start_time
         )
 
-        # 4. Return summary
+        # 5. Build explainable output
+        best_chromosome = result['best_chromosome']
+
+        # Collect locked slots
+        locked_slots = []
+        for gene in best_chromosome.genes:
+            if gene.is_locked:
+                locked_slots.append({
+                    'session_key': gene.session_key,
+                    'course_code': gene.course_code,
+                    'section_code': gene.section_code,
+                    'day': gene.day,
+                    'start_time': gene.start_time,
+                    'end_time': gene.end_time,
+                    'room_code': gene.room_code,
+                    'lock_type': gene.lock_type
+                })
+
+        # Calculate constraint summary
+        soft_scores = best_chromosome.soft_scores or {}
+        hard_violations = best_chromosome.hard_violations or {}
+
+        # Identify violated soft constraints (score < max weight)
+        soft_constraint_violations = []
+        for constraint_name, score in soft_scores.items():
+            max_weight = getattr(self.ga_config, f'weight_{constraint_name}', 100)
+            if score < max_weight * 0.9:  # Less than 90% of max
+                penalty = max_weight - score
+                soft_constraint_violations.append({
+                    'constraint': constraint_name,
+                    'score': round(score, 2),
+                    'max_score': round(max_weight, 2),
+                    'penalty': round(penalty, 2),
+                    'satisfaction_percent': round((score / max_weight) * 100, 1) if max_weight > 0 else 100
+                })
+
+        # Sort violations by penalty (highest first)
+        soft_constraint_violations.sort(key=lambda x: x['penalty'], reverse=True)
+
+        # Build enforced constraints list
+        enforced_hard_constraints = []
+        for constraint_name, violation_count in hard_violations.items():
+            enforced_hard_constraints.append({
+                'constraint': constraint_name,
+                'violations': violation_count,
+                'status': 'satisfied' if violation_count == 0 else 'violated'
+            })
+
+        # Calculate fitness breakdown
+        fitness_breakdown = {
+            'total_fitness': round(result['best_fitness'], 2),
+            'max_possible': round(sum(getattr(self.ga_config, f'weight_{k}', 0) for k in soft_scores.keys()), 2),
+            'soft_scores': {k: round(v, 2) for k, v in soft_scores.items()},
+            'fitness_percentage': round(
+                (result['best_fitness'] / sum(getattr(self.ga_config, f'weight_{k}', 100) for k in soft_scores.keys())) * 100, 1
+            ) if soft_scores else 0
+        }
+
+        # 6. Return enhanced summary
         return {
             'timetable_id': timetable_id,
             'generation_time': time.time() - start_time,
-            'sessions_scheduled': len(result['best_chromosome'].genes),
+            'sessions_scheduled': len(best_chromosome.genes),
             'sessions_total': len(sessions_df),
             'fitness_score': result['best_fitness'],
             'is_feasible': result['is_feasible'],
-            'hard_violations': result.get('hard_violations', {}),
-            'strategy': self.strategy
+            'strategy': self.strategy,
+
+            # Explainable output
+            'explanation': {
+                'hard_constraints': enforced_hard_constraints,
+                'soft_constraint_violations': soft_constraint_violations,
+                'fitness_breakdown': fitness_breakdown,
+                'locked_slots': locked_slots,
+                'locked_count': len(locked_slots),
+                'conflict_details': best_chromosome.conflict_details[:20]  # First 20 details
+            },
+
+            # Legacy fields
+            'hard_violations': hard_violations,
+            'soft_scores': soft_scores
         }
 
     def _run_ga(
@@ -179,7 +298,8 @@ class TimetableOptimizer:
         teacher_constraints: Optional[list],
         room_constraints: Optional[list],
         locked_assignments: Optional[list],
-        progress_callback: Optional[callable]
+        progress_callback: Optional[callable],
+        random_seed: Optional[int] = None
     ) -> Dict:
         """Run full genetic algorithm."""
 
@@ -190,7 +310,8 @@ class TimetableOptimizer:
             teacher_constraints=teacher_constraints or [],
             room_constraints=room_constraints or [],
             locked_assignments=locked_assignments or [],
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            random_seed=random_seed
         )
 
         result = engine.run(

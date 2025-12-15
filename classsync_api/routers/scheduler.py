@@ -12,7 +12,7 @@ from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id
 from classsync_api.schemas import MessageResponse, TimetableUpdate, GenerateRequest
 from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry
-from classsync_core.optimizer import TimetableOptimizer
+from classsync_core.optimizer import TimetableOptimizer, ValidationFailedError
 from fastapi import Body
 
 from fastapi.responses import FileResponse
@@ -79,7 +79,8 @@ async def generate_timetable(
             generations=request.generations,
             teacher_constraints=teacher_constraints,
             room_constraints=room_constraints,
-            locked_assignments=locked_assignments
+            locked_assignments=locked_assignments,
+            random_seed=request.random_seed
         )
 
         return {
@@ -89,14 +90,33 @@ async def generate_timetable(
             "sessions_scheduled": result['sessions_scheduled'],
             "sessions_total": result['sessions_total'],
             "fitness_score": result['fitness_score'],
-            "hard_violations": result.get('hard_violations'),
-            "soft_scores": result.get('soft_scores'),
+            "is_feasible": result.get('is_feasible', True),
+            "strategy": result.get('strategy', 'ga'),
+
+            # Constraint application summary
             "constraints_applied": {
                 "teacher_constraints": len(teacher_constraints),
                 "room_constraints": len(room_constraints),
                 "locked_assignments": len(locked_assignments)
-            }
+            },
+
+            # Explainable output - detailed constraint analysis
+            "explanation": result.get('explanation', {}),
+
+            # Legacy fields for backwards compatibility
+            "hard_violations": result.get('hard_violations'),
+            "soft_scores": result.get('soft_scores')
         }
+
+    except ValidationFailedError as e:
+        # Return validation errors with 422 status
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Pre-generation validation failed",
+                "validation_errors": e.validation_result.to_dict()
+            }
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")

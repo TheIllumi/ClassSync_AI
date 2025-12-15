@@ -88,6 +88,25 @@ class FitnessEvaluator:
                 days = tc.get('days', [tc.get('day')] if tc.get('day') else [])
                 for day in days:
                     self.teacher_day_offs[teacher_id].append((day, is_hard, weight))
+
+        # Room constraints (symmetric to teacher constraints)
+        self.room_blocked_slots = defaultdict(list)  # room_id -> [(day, start, end, is_hard, weight)]
+        self.room_day_offs = defaultdict(list)  # room_id -> [(day, is_hard, weight)]
+
+        for rc in self.room_constraints:
+            room_id = rc['room_id']
+            constraint_type = rc['constraint_type']
+            is_hard = rc.get('is_hard', False)
+            weight = rc.get('weight', 5)
+
+            if constraint_type == 'blocked_slot':
+                self.room_blocked_slots[room_id].append(
+                    (rc.get('day'), rc.get('start_time'), rc.get('end_time'), is_hard, weight)
+                )
+            elif constraint_type == 'day_off':
+                days = rc.get('days', [rc.get('day')] if rc.get('day') else [])
+                for day in days:
+                    self.room_day_offs[room_id].append((day, is_hard, weight))
     
     def evaluate(self, chromosome: Chromosome) -> float:
         """
@@ -138,6 +157,9 @@ class FitnessEvaluator:
             'missing_assignments': 0,
             'teacher_blocked_slots': 0,
             'teacher_day_offs': 0,
+            'room_blocked_slots': 0,
+            'room_day_offs': 0,
+            'room_capacity': 0,
             'lock_violations': 0
         }
         
@@ -204,6 +226,18 @@ class FitnessEvaluator:
         teacher_dayoff_violations = self._check_teacher_day_offs(chromosome)
         violations['teacher_day_offs'] = teacher_dayoff_violations
 
+        # Check room blocked slots (hard constraints only)
+        room_blocked_violations = self._check_room_blocked_slots(chromosome)
+        violations['room_blocked_slots'] = room_blocked_violations
+
+        # Check room day-offs (hard constraints only)
+        room_dayoff_violations = self._check_room_day_offs(chromosome)
+        violations['room_day_offs'] = room_dayoff_violations
+
+        # Check room capacity violations
+        room_capacity_violations = self._check_room_capacity(chromosome)
+        violations['room_capacity'] = room_capacity_violations
+
         # Check lock violations (genes that were modified from their locked values)
         lock_violations = self._check_lock_violations(chromosome)
         violations['lock_violations'] = lock_violations
@@ -252,6 +286,67 @@ class FitnessEvaluator:
                         f"Teacher day-off violation: {gene.session_key} on {day} "
                         f"(teacher has hard day-off constraint)"
                     )
+
+        return violations
+
+    def _check_room_blocked_slots(self, chromosome: Chromosome) -> int:
+        """Check for hard room blocked slot violations."""
+        violations = 0
+
+        for gene in chromosome.genes:
+            room_id = gene.room_id
+            if room_id not in self.room_blocked_slots:
+                continue
+
+            for day, start_time, end_time, is_hard, weight in self.room_blocked_slots[room_id]:
+                if not is_hard:
+                    continue  # Skip soft constraints here
+
+                if gene.day == day and slots_overlap(gene.start_time, gene.end_time, start_time, end_time):
+                    violations += 1
+                    chromosome.conflict_details.append(
+                        f"Room blocked slot violation: {gene.session_key} in room {gene.room_code} on {day} "
+                        f"({gene.start_time}-{gene.end_time}) conflicts with blocked "
+                        f"({start_time}-{end_time})"
+                    )
+
+        return violations
+
+    def _check_room_day_offs(self, chromosome: Chromosome) -> int:
+        """Check for hard room day-off violations."""
+        violations = 0
+
+        for gene in chromosome.genes:
+            room_id = gene.room_id
+            if room_id not in self.room_day_offs:
+                continue
+
+            for day, is_hard, weight in self.room_day_offs[room_id]:
+                if not is_hard:
+                    continue  # Skip soft constraints here
+
+                if gene.day == day:
+                    violations += 1
+                    chromosome.conflict_details.append(
+                        f"Room day-off violation: {gene.session_key} in room {gene.room_code} on {day} "
+                        f"(room has hard day-off constraint)"
+                    )
+
+        return violations
+
+    def _check_room_capacity(self, chromosome: Chromosome) -> int:
+        """
+        Check for room capacity violations.
+        This is a hard constraint if section size exceeds room capacity.
+        """
+        violations = 0
+
+        for gene in chromosome.genes:
+            room_capacity = self.room_capacities.get(gene.room_code, 50)
+            # For now, we don't have section sizes, so skip capacity check
+            # This can be extended when section enrollment data is available
+            # if gene.section_size > room_capacity:
+            #     violations += 1
 
         return violations
 
@@ -356,47 +451,140 @@ class FitnessEvaluator:
     def _calculate_soft_scores(self, chromosome: Chromosome) -> Dict[str, float]:
         """
         Calculate scores for soft constraints.
-        
-        Each constraint contributes to total fitness (0-1000).
-        Higher score = better.
-        
+
+        Scoring is organized by priority tier:
+        - TIER 1 (Critical): Resource availability - highest impact
+        - TIER 2 (Important): Schedule quality
+        - TIER 3 (Preference): Time/room preferences
+        - TIER 4 (Minor): Optimization nice-to-haves
+
+        Each constraint contributes to total fitness.
+        Higher score = better. Normalized to ~1000 max.
+
         Returns:
             Dictionary of constraint -> score
         """
         scores = {}
-        
-        # 1. Even distribution across days
+
+        # TIER 1: Resource Availability (Critical)
+        scores['teacher_availability'] = self._score_teacher_availability(chromosome)
+        scores['room_availability'] = self._score_room_availability(chromosome)
+
+        # TIER 2: Schedule Quality (Important)
         scores['even_distribution'] = self._score_even_distribution(chromosome)
-        
-        # 2. Minimize gaps in student schedules
         scores['minimize_student_gaps'] = self._score_minimize_gaps(chromosome, 'section')
-        
-        # 3. Minimize gaps in teacher schedules
+        scores['compact_schedule'] = self._score_compactness(chromosome)
         scores['minimize_teacher_gaps'] = self._score_minimize_gaps(chromosome, 'teacher')
-        
-        # 4. Minimize early morning classes
+
+        # TIER 3: Preferences
+        scores['room_type_match'] = self._score_room_type_match(chromosome)
         scores['minimize_early_classes'] = self._score_time_preference(
             chromosome, 'early', self.config.early_class_threshold
         )
-        
-        # 5. Minimize late evening classes
         scores['minimize_late_classes'] = self._score_time_preference(
             chromosome, 'late', self.config.late_class_threshold
         )
-        
-        # 6. Room type match (labs in lab rooms)
-        scores['room_type_match'] = self._score_room_type_match(chromosome)
-        
-        # 7. Minimize building changes
+
+        # TIER 4: Minor Optimization
         scores['minimize_building_changes'] = self._score_building_changes(chromosome)
-        
-        # 8. Compact schedules
-        scores['compact_schedule'] = self._score_compactness(chromosome)
-        
-        # 9. Room utilization
         scores['room_utilization'] = self._score_room_utilization(chromosome)
-        
+
         return scores
+
+    def _score_teacher_availability(self, chromosome: Chromosome) -> float:
+        """
+        Score based on respecting soft teacher availability constraints.
+        Penalizes sessions scheduled during teacher blocked slots or day-offs
+        when those constraints are marked as soft (not hard).
+
+        Returns:
+            Score (higher = better, 0 = max violations)
+        """
+        if not self.teacher_constraints:
+            # No constraints, full score
+            return self.config.weight_teacher_availability
+
+        total_penalty = 0
+        violation_count = 0
+        max_violations = len(chromosome.genes)  # Theoretical max
+
+        for gene in chromosome.genes:
+            teacher_id = gene.teacher_id
+
+            # Check soft blocked slots
+            for day, start_time, end_time, is_hard, weight in self.teacher_blocked_slots.get(teacher_id, []):
+                if is_hard:
+                    continue  # Hard constraints handled elsewhere
+
+                if gene.day == day and slots_overlap(gene.start_time, gene.end_time, start_time, end_time):
+                    # Apply weighted penalty (weight is 1-10, multiply by penalty factor)
+                    total_penalty += weight * self.config.soft_constraint_penalty_multiplier
+                    violation_count += 1
+
+            # Check soft day-offs
+            for day, is_hard, weight in self.teacher_day_offs.get(teacher_id, []):
+                if is_hard:
+                    continue
+
+                if gene.day == day:
+                    total_penalty += weight * self.config.soft_constraint_penalty_multiplier
+                    violation_count += 1
+
+        # Normalize: no violations = full weight, max violations = 0
+        if max_violations == 0:
+            return self.config.weight_teacher_availability
+
+        # Calculate score: higher penalty = lower score
+        max_penalty = max_violations * 10 * self.config.soft_constraint_penalty_multiplier
+        penalty_ratio = min(total_penalty / max_penalty, 1.0) if max_penalty > 0 else 0
+        score = (1.0 - penalty_ratio) * self.config.weight_teacher_availability
+
+        return max(0, score)
+
+    def _score_room_availability(self, chromosome: Chromosome) -> float:
+        """
+        Score based on respecting soft room availability constraints.
+        Symmetric to teacher availability scoring.
+
+        Returns:
+            Score (higher = better)
+        """
+        if not self.room_constraints:
+            return self.config.weight_room_availability
+
+        total_penalty = 0
+        violation_count = 0
+        max_violations = len(chromosome.genes)
+
+        for gene in chromosome.genes:
+            room_id = gene.room_id
+
+            # Check soft blocked slots
+            for day, start_time, end_time, is_hard, weight in self.room_blocked_slots.get(room_id, []):
+                if is_hard:
+                    continue
+
+                if gene.day == day and slots_overlap(gene.start_time, gene.end_time, start_time, end_time):
+                    total_penalty += weight * self.config.soft_constraint_penalty_multiplier
+                    violation_count += 1
+
+            # Check soft day-offs
+            for day, is_hard, weight in self.room_day_offs.get(room_id, []):
+                if is_hard:
+                    continue
+
+                if gene.day == day:
+                    total_penalty += weight * self.config.soft_constraint_penalty_multiplier
+                    violation_count += 1
+
+        if max_violations == 0:
+            return self.config.weight_room_availability
+
+        max_penalty = max_violations * 10 * self.config.soft_constraint_penalty_multiplier
+        penalty_ratio = min(total_penalty / max_penalty, 1.0) if max_penalty > 0 else 0
+        score = (1.0 - penalty_ratio) * self.config.weight_room_availability
+
+        return max(0, score)
     
     def _score_even_distribution(self, chromosome: Chromosome) -> float:
         """

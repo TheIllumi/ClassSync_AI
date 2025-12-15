@@ -445,6 +445,13 @@ class GenerateRequest(BaseModel):
     generations: int = Field(default=100, ge=50, le=300)
     target_fitness: float = Field(default=85.0, ge=50.0, le=100.0)
 
+    # Reproducibility: Optional random seed for deterministic generation
+    # If provided, the same seed with same inputs will produce the same result
+    random_seed: Optional[int] = Field(
+        default=None,
+        description="Random seed for reproducible generation. Same seed + inputs = same result."
+    )
+
 
 class GenerateResponse(BaseModel):
     """Response after successful timetable generation."""

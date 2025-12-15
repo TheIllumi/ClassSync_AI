@@ -61,7 +61,13 @@ class GeneticOperators:
         """
         Day-based crossover: inherit complete days from each parent.
         Example: Child1 gets Mon/Wed/Fri from P1, Tue/Thu from P2
+
+        IMPORTANT: Locked genes are always copied from parent1 and restored
+        to their locked values to ensure lock integrity.
         """
+        # Build lookup for locked genes from parent1 (authoritative source)
+        locked_genes_p1 = {g.session_key: g for g in parent1.genes if g.is_locked}
+
         # Randomly split days
         days = self.config.working_days[:]
         random.shuffle(days)
@@ -72,43 +78,69 @@ class GeneticOperators:
 
         # Create offspring 1
         child1_genes = []
-        for gene in parent1.genes:
-            if gene.day in days_from_p1:
-                child1_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
-        for gene in parent2.genes:
-            if gene.day in days_from_p2:
-                # Find matching session_key in child1_genes
-                matching = [g for g in child1_genes if g.session_key == gene.session_key]
-                if not matching:
-                    child1_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
+        child1_keys = set()
 
-        # Create offspring 2 (opposite)
-        child2_genes = []
-        for gene in parent2.genes:
-            if gene.day in days_from_p1:
-                child2_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
+        # First: Add all locked genes from parent1 (never from parent2)
         for gene in parent1.genes:
-            if gene.day in days_from_p2:
-                matching = [g for g in child2_genes if g.session_key == gene.session_key]
-                if not matching:
-                    child2_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
+            if gene.is_locked:
+                new_gene = deepcopy(gene)
+                new_gene.restore_lock()  # Ensure locked values are restored
+                child1_genes.append(new_gene)
+                child1_keys.add(gene.session_key)
 
-        # SAFETY CHECK: Ensure no genes were dropped
-        # If a gene was on Day A in P1 (so P1 loop skipped for child1 using days_from_p2)
-        # AND on Day B in P2 (so P2 loop skipped for child1 using days_from_p1)
-        # It would be missing. We must fill it.
-        
-        # Fill missing in Child 1
-        child1_keys = {g.session_key for g in child1_genes}
+        # Then: Add non-locked genes based on day split
+        for gene in parent1.genes:
+            if gene.session_key in child1_keys:
+                continue  # Already added as locked
+            if gene.day in days_from_p1:
+                child1_genes.append(deepcopy(gene))
+                child1_keys.add(gene.session_key)
+
+        for gene in parent2.genes:
+            if gene.session_key in child1_keys:
+                continue  # Already added
+            if gene.day in days_from_p2:
+                child1_genes.append(deepcopy(gene))
+                child1_keys.add(gene.session_key)
+
+        # Fill any missing genes from parent1
         for gene in parent1.genes:
             if gene.session_key not in child1_keys:
-                child1_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
-        
-        # Fill missing in Child 2
-        child2_keys = {g.session_key for g in child2_genes}
+                child1_genes.append(deepcopy(gene))
+                child1_keys.add(gene.session_key)
+
+        # Create offspring 2 (opposite day assignment)
+        child2_genes = []
+        child2_keys = set()
+
+        # First: Add all locked genes from parent1
+        for gene in parent1.genes:
+            if gene.is_locked:
+                new_gene = deepcopy(gene)
+                new_gene.restore_lock()
+                child2_genes.append(new_gene)
+                child2_keys.add(gene.session_key)
+
+        # Then: Add non-locked genes based on opposite day split
+        for gene in parent2.genes:
+            if gene.session_key in child2_keys:
+                continue
+            if gene.day in days_from_p1:
+                child2_genes.append(deepcopy(gene))
+                child2_keys.add(gene.session_key)
+
+        for gene in parent1.genes:
+            if gene.session_key in child2_keys:
+                continue
+            if gene.day in days_from_p2:
+                child2_genes.append(deepcopy(gene))
+                child2_keys.add(gene.session_key)
+
+        # Fill any missing genes from parent1
         for gene in parent1.genes:
             if gene.session_key not in child2_keys:
-                child2_genes.append(gene.copy() if hasattr(gene, 'copy') else deepcopy(gene))
+                child2_genes.append(deepcopy(gene))
+                child2_keys.add(gene.session_key)
 
         return Chromosome(child1_genes), Chromosome(child2_genes)
 
@@ -120,17 +152,33 @@ class GeneticOperators:
     ) -> Tuple[Chromosome, Chromosome]:
         """
         Uniform crossover: randomly inherit each gene from either parent.
+
+        IMPORTANT: Locked genes are always copied from parent1 and restored
+        to their locked values. Non-locked genes are randomly inherited.
         """
         child1_genes = []
         child2_genes = []
 
         for i in range(len(parent1.genes)):
-            if random.random() < 0.5:
-                child1_genes.append(deepcopy(parent1.genes[i]))
-                child2_genes.append(deepcopy(parent2.genes[i]))
+            gene1 = parent1.genes[i]
+
+            # For locked genes: always use parent1's version and restore lock
+            if gene1.is_locked:
+                new_gene1 = deepcopy(gene1)
+                new_gene1.restore_lock()
+                child1_genes.append(new_gene1)
+
+                new_gene2 = deepcopy(gene1)
+                new_gene2.restore_lock()
+                child2_genes.append(new_gene2)
             else:
-                child1_genes.append(deepcopy(parent2.genes[i]))
-                child2_genes.append(deepcopy(parent1.genes[i]))
+                # For non-locked genes: random inheritance
+                if random.random() < 0.5:
+                    child1_genes.append(deepcopy(parent1.genes[i]))
+                    child2_genes.append(deepcopy(parent2.genes[i]))
+                else:
+                    child1_genes.append(deepcopy(parent2.genes[i]))
+                    child2_genes.append(deepcopy(parent1.genes[i]))
 
         return Chromosome(child1_genes), Chromosome(child2_genes)
 

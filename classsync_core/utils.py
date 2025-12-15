@@ -21,7 +21,7 @@ def time_to_minutes(t: Union[time, str]) -> int:
 
 def minutes_to_time(minutes: int) -> time:
     """Convert minutes since midnight to time object."""
-    return time(minutes // 60, minutes % 60)
+    return time((minutes // 60) % 24, minutes % 60)
 
 
 def slots_overlap(start1: str, end1: str, start2: str, end2: str) -> bool:

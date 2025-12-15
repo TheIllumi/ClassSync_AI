@@ -1,13 +1,49 @@
 """
 Repair Mechanism - Fixes constraint violations in chromosomes.
+
+Repair Strategy:
+1. Restore locked genes first (immutable)
+2. Fix structural issues (blocked windows, invalid times, lab contiguity)
+3. Resolve resource conflicts in priority order: teacher > room > section
+4. Use maximum pass limits to prevent infinite loops
+5. Track repair attempts to avoid repetition
 """
 import random
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Tuple
 from collections import defaultdict
+from dataclasses import dataclass, field
 from classsync_core.scheduler.chromosome import Chromosome, Gene
 from classsync_core.scheduler.config import GAConfig
-from classsync_core.utils import slots_overlap, calculate_slot_end_time
+from classsync_core.utils import slots_overlap, calculate_slot_end_time, time_to_minutes
+
+
+@dataclass
+class RepairStats:
+    """Statistics for repair operation."""
+    total_attempts: int = 0
+    successful_repairs: int = 0
+    failed_repairs: int = 0
+    locked_conflicts_skipped: int = 0
+    pass_count: int = 0
+
+
 class RepairMechanism:
+    """
+    Repairs chromosome constraint violations.
+
+    Design Decisions:
+    - Locked genes are NEVER modified (restored at start of each repair)
+    - Global pass limit prevents infinite loops
+    - Priority order: teacher conflicts > room conflicts > section conflicts
+    - Conflict resolution uses randomized slot search with attempt tracking
+    """
+
+    # Maximum number of complete repair passes
+    MAX_REPAIR_PASSES = 3
+
+    # Maximum total attempts across all repair passes
+    MAX_TOTAL_ATTEMPTS = 500
+
     def __init__(self, config: GAConfig, rooms_df):
         self.config = config
         self.rooms_df = rooms_df
@@ -23,9 +59,28 @@ class RepairMechanism:
 
         self.all_rooms = rooms_df['Room_Code'].tolist()
 
+        # Pre-compute valid slots for faster lookup
+        self._precompute_valid_slots()
+
+    def _precompute_valid_slots(self):
+        """Pre-compute all valid (day, start_time) combinations not in blocked windows."""
+        self.valid_slots = []
+        day_end_minutes = time_to_minutes(self.config.day_end_time)
+
+        for day in self.config.working_days:
+            for start_time in self.config.allowed_start_times:
+                # Check against all common durations
+                for duration in [90, 120, 180]:
+                    end_time = calculate_slot_end_time(start_time, duration)
+                    if time_to_minutes(end_time) <= day_end_minutes:
+                        if not self.config.is_blocked(day, start_time, end_time):
+                            self.valid_slots.append((day, start_time, duration))
+
     def repair(self, chromosome: Chromosome) -> bool:
         """
         Repair chromosome to fix hard constraint violations.
+
+        Uses multiple passes with global attempt limits to prevent infinite loops.
 
         Args:
             chromosome: Chromosome to repair (modified in-place)
@@ -33,36 +88,61 @@ class RepairMechanism:
         Returns:
             True if successfully repaired, False if unrepairable
         """
-        # FIRST: Restore locked genes to their fixed values
+        stats = RepairStats()
+
+        # ALWAYS restore locked genes first
+        self._restore_all_locked_genes(chromosome)
+
+        # Multiple repair passes with global limit
+        for pass_num in range(self.MAX_REPAIR_PASSES):
+            stats.pass_count = pass_num + 1
+
+            if stats.total_attempts >= self.MAX_TOTAL_ATTEMPTS:
+                break
+
+            # Run repair sequence
+            all_repaired = self._run_repair_pass(chromosome, stats)
+
+            if all_repaired:
+                stats.successful_repairs += 1
+                return True
+
+            # Restore locks before next pass (safety)
+            self._restore_all_locked_genes(chromosome)
+
+        # Failed after all passes
+        stats.failed_repairs += 1
+        return False
+
+    def _restore_all_locked_genes(self, chromosome: Chromosome):
+        """Restore all locked genes to their fixed values."""
         for gene in chromosome.genes:
             if gene.is_locked:
                 gene.restore_lock()
 
-        # Follow repair order from config
-        for constraint_type in self.config.repair_order:
-            if constraint_type == 'blocked_windows':
-                if not self._repair_blocked_windows(chromosome):
-                    return False
+    def _run_repair_pass(self, chromosome: Chromosome, stats: RepairStats) -> bool:
+        """
+        Run a single repair pass through all constraint types.
 
-            elif constraint_type == 'invalid_start_times':
-                if not self._repair_invalid_start_times(chromosome):
-                    return False
+        Returns:
+            True if all constraints repaired successfully
+        """
+        # Priority-ordered repair sequence
+        repair_sequence = [
+            ('blocked_windows', self._repair_blocked_windows),
+            ('invalid_start_times', self._repair_invalid_start_times),
+            ('lab_contiguity', self._repair_lab_contiguity),
+            ('teacher_conflicts', lambda c: self._repair_resource_conflicts(c, 'teacher', stats)),
+            ('room_conflicts', lambda c: self._repair_resource_conflicts(c, 'room', stats)),
+            ('section_conflicts', lambda c: self._repair_resource_conflicts(c, 'section', stats)),
+        ]
 
-            elif constraint_type == 'lab_contiguity':
-                if not self._repair_lab_contiguity(chromosome):
-                    return False
+        for constraint_name, repair_func in repair_sequence:
+            if stats.total_attempts >= self.MAX_TOTAL_ATTEMPTS:
+                return False
 
-            elif constraint_type == 'teacher_conflicts':
-                if not self._repair_resource_conflicts(chromosome, 'teacher'):
-                    return False
-
-            elif constraint_type == 'room_conflicts':
-                if not self._repair_resource_conflicts(chromosome, 'room'):
-                    return False
-
-            elif constraint_type == 'section_conflicts':
-                if not self._repair_resource_conflicts(chromosome, 'section'):
-                    return False
+            if not repair_func(chromosome):
+                return False
 
         return True
 
@@ -110,38 +190,74 @@ class RepairMechanism:
     def _repair_resource_conflicts(
             self,
             chromosome: Chromosome,
-            resource_type: str
+            resource_type: str,
+            stats: RepairStats = None
     ) -> bool:
         """
         Repair overlaps for a resource (teacher/room/section).
 
-        Strategy: For each conflict, move one session to alternative slot.
+        Strategy:
+        1. Find all conflicts for this resource type
+        2. For each conflict, move one (non-locked) session to alternative slot
+        3. Track attempts to prevent infinite loops
+        4. Skip conflicts where both genes are locked (unresolvable)
+
+        Args:
+            chromosome: Chromosome to repair
+            resource_type: 'teacher', 'room', or 'section'
+            stats: Optional stats tracker
+
+        Returns:
+            True if all conflicts resolved
         """
+        if stats is None:
+            stats = RepairStats()
+
         # Build conflict index
         conflicts = self._find_resource_conflicts(chromosome, resource_type)
 
         if not conflicts:
             return True
 
-        # Try to repair each conflict
-        attempts = 0
-        max_attempts = self.config.max_repair_attempts * len(conflicts)
+        # Track which conflicts we've already tried (to avoid infinite loops)
+        tried_conflicts: Set[Tuple[str, str]] = set()
+        local_attempts = 0
+        max_local_attempts = self.config.max_repair_attempts * max(len(conflicts), 1)
 
-        while conflicts and attempts < max_attempts:
-            attempts += 1
+        while conflicts and local_attempts < max_local_attempts:
+            local_attempts += 1
+            stats.total_attempts += 1
 
-            # Pick random conflict
-            conflict_genes = random.choice(conflicts)
+            # Check global limit
+            if stats.total_attempts >= self.MAX_TOTAL_ATTEMPTS:
+                return False
+
+            # Pick conflict (prefer untried ones)
+            conflict_genes = None
+            for cg in conflicts:
+                conflict_key = tuple(sorted([cg[0].session_key, cg[1].session_key]))
+                if conflict_key not in tried_conflicts:
+                    conflict_genes = cg
+                    tried_conflicts.add(conflict_key)
+                    break
+
+            if conflict_genes is None:
+                # All conflicts have been tried - pick random
+                conflict_genes = random.choice(conflicts)
 
             # Try to move one of the conflicting genes (skip locked ones)
             movable_genes = [g for g in conflict_genes if not g.is_locked]
 
             if not movable_genes:
                 # Both genes are locked - this conflict cannot be resolved
-                # Skip this conflict but continue with others
+                stats.locked_conflicts_skipped += 1
                 conflicts.remove(conflict_genes)
                 continue
 
+            # Sort movable genes by session_key for deterministic ordering
+            movable_genes.sort(key=lambda g: g.session_key)
+
+            repair_success = False
             for gene in movable_genes:
                 # Find gene index in chromosome
                 gene_idx = next(
@@ -154,12 +270,18 @@ class RepairMechanism:
 
                 # Try alternative slot
                 if self._find_alternative_slot(chromosome.genes[gene_idx], chromosome):
+                    repair_success = True
                     break
+
+            if not repair_success:
+                # Could not repair this conflict in this attempt
+                # Will retry on next pass if conflicts remain
+                pass
 
             # Re-check conflicts
             conflicts = self._find_resource_conflicts(chromosome, resource_type)
 
-        # If still conflicts after max attempts, fail
+        # Return success if no conflicts remain
         return len(conflicts) == 0
 
     def _find_resource_conflicts(

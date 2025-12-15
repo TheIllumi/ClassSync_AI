@@ -76,19 +76,45 @@ class GAConfig:
     enforce_full_coverage: bool = True  # All sessions must be scheduled
     
     # ==================== SOFT CONSTRAINT WEIGHTS ====================
-    # Higher weight = more important (0-100 scale)
-    # Total target fitness = 1000
-    
-    weight_even_distribution: float = 150.0  # Spread across days
+    # Higher weight = more important
+    # Weights are organized by priority tier:
+    #   TIER 1 (Critical): 150-200 - Resource availability
+    #   TIER 2 (Important): 100-149 - Schedule quality
+    #   TIER 3 (Preference): 50-99 - Optimization preferences
+    #   TIER 4 (Minor): 1-49 - Nice to have
+    #
+    # Total theoretical max fitness ~ 1000 (normalized)
+    #
+    # Priority Order (high to low):
+    # 1. Teacher availability constraints (hard->soft)
+    # 2. Room availability constraints (hard->soft)
+    # 3. Schedule compactness and distribution
+    # 4. Time preferences (early/late)
+    # 5. Building/room optimization
+
+    # TIER 1: Resource Availability (Critical - 150-200)
+    weight_teacher_availability: float = 180.0    # Respect teacher soft constraints
+    weight_room_availability: float = 160.0       # Respect room soft constraints
+
+    # TIER 2: Schedule Quality (Important - 100-149)
+    weight_even_distribution: float = 140.0       # Spread across days
     weight_minimize_gaps_students: float = 120.0  # Compact student schedules
+    weight_compact_schedule: float = 110.0        # Minimal day span
     weight_minimize_gaps_teachers: float = 100.0  # Compact teacher schedules
-    weight_minimize_early_classes: float = 60.0   # Avoid before 09:30
-    weight_minimize_late_classes: float = 60.0    # Avoid after 15:30
+
+    # TIER 3: Preferences (50-99)
+    weight_teacher_preference: float = 90.0       # Time slot preferences
     weight_room_type_match: float = 80.0          # Labs in lab rooms
-    weight_minimize_building_changes: float = 50.0  # Same building preference
-    weight_compact_schedule: float = 100.0        # Minimal fragmentation
-    weight_room_utilization: float = 40.0         # Efficient room usage
-    weight_teacher_preference: float = 90.0       # Respect preferences (future)
+    weight_minimize_early_classes: float = 60.0   # Avoid before threshold
+    weight_minimize_late_classes: float = 60.0    # Avoid after threshold
+
+    # TIER 4: Minor Optimization (1-49)
+    weight_minimize_building_changes: float = 40.0  # Same building preference
+    weight_room_utilization: float = 30.0           # Efficient room usage
+
+    # Penalty multiplier for soft constraint violations
+    # User-specified weights (1-10) are multiplied by this
+    soft_constraint_penalty_multiplier: float = 15.0
     
     # Thresholds for penalties
     early_class_threshold: str = '09:30'

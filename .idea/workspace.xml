@@ -3,6 +3,19 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/GenerateTimetable.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/GenerateTimetable.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/types/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/tsconfig.app.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/tsconfig.app.tsbuildinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/optimizer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/fitness_evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/fitness_evaluator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/ga_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/ga_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/operators.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/operators.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/repair.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/repair.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,27 +50,27 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "HTTP Request.test_api | GET request to example server.executor": "Run",
-    "HTTP Request.test_api | Test API status.executor": "Run",
-    "HTTP Request.test_api | Test health check.executor": "Run",
-    "HTTP Request.test_api | Test root endpoint.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "experiment",
-    "ignore.virus.scanning.warn.message": "true",
-    "javascript.preferred.runtime.type.id": "node",
-    "last_opened_file_path": "D:/GitHub/ClassSync_AI",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "ts.external.directory.path": "D:\\GitHub\\ClassSync_AI\\classsync-frontend\\node_modules\\typescript\\lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;HTTP Request.test_api | GET request to example server.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test API status.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test health check.executor&quot;: &quot;Run&quot;,
+    &quot;HTTP Request.test_api | Test root endpoint.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;experiment&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/GitHub/ClassSync_AI&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;D:\\GitHub\\ClassSync_AI\\classsync-frontend\\node_modules\\typescript\\lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="HTTP Request.test_api | Test API status">
     <configuration name="test_api | GET request to example server" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" temporary="true" nameIsGenerated="true" path="$PROJECT_DIR$/test_api.http" executionIdentifier="GET request to example server" runType="Run single request">
       <method v="2" />
@@ -83,7 +96,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-WS-253.28294.332" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PY-253.28294.336" />
+        <option value="bundled-python-sdk-0978a7220b69-9867c7d4c0a4-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.28294.336" />
       </set>
     </attachedChunks>
   </component>
@@ -100,7 +114,7 @@
       <workItem from="1765553396854" duration="11039000" />
       <workItem from="1765614711730" duration="7062000" />
       <workItem from="1765718760313" duration="8105000" />
-      <workItem from="1765807517350" duration="1005000" />
+      <workItem from="1765807517350" duration="2957000" />
     </task>
     <servers />
   </component>

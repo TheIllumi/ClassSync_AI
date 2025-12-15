@@ -7,8 +7,6 @@ import {
     Plus,
     Trash2,
     User,
-    Clock,
-    Calendar,
     AlertCircle,
     CheckCircle,
     ChevronDown,
@@ -37,6 +35,37 @@ const CONSTRAINT_TYPES: { value: ConstraintType; label: string; description: str
     { value: 'available_window', label: 'Available Window', description: 'Teacher is only available during this time' },
     { value: 'preferred_slot', label: 'Preferred Slot', description: 'Teacher prefers this time slot' },
 ]
+
+// Validation types
+interface ValidationError {
+    type: 'error' | 'warning'
+    message: string
+    details?: string
+}
+
+// Time helper functions
+function timeToMinutes(time: string | undefined | null): number {
+    if (!time || typeof time !== 'string') return 0
+    try {
+        const parts = time.split(':')
+        if (parts.length !== 2) return 0
+        const [hours, minutes] = parts.map(Number)
+        if (isNaN(hours) || isNaN(minutes)) return 0
+        return hours * 60 + minutes
+    } catch (e) {
+        return 0
+    }
+}
+
+function slotsOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+    const s1 = timeToMinutes(start1)
+    const e1 = timeToMinutes(end1)
+    const s2 = timeToMinutes(start2)
+    const e2 = timeToMinutes(end2)
+    // Ensure valid ranges
+    if (s1 >= e1 || s2 >= e2) return false
+    return s1 < e2 && s2 < e1
+}
 
 export function GenerateTimetable() {
     const navigate = useNavigate()
@@ -67,7 +96,124 @@ export function GenerateTimetable() {
         population_size: 30,
         generations: 100,
         target_fitness: 85,
+        random_seed: undefined as number | undefined,
     })
+
+    // Validation function for constraints
+    const validateConstraints = (): ValidationError[] => {
+        try {
+            const errors: ValidationError[] = []
+            const config = selectedConfig || defaultConfig
+
+            // Group constraints by teacher
+            const constraintsByTeacher = new Map<number, TeacherConstraint[]>()
+            teacherConstraints.forEach(c => {
+                const existing = constraintsByTeacher.get(c.teacher_id) || []
+                constraintsByTeacher.set(c.teacher_id, [...existing, c])
+            })
+
+            // Check each teacher's constraints
+            constraintsByTeacher.forEach((constraints, teacherId) => {
+                const teacherName = getTeacherNameById(teacherId)
+
+                // Get blocked slots for this teacher
+                const blockedSlots = constraints.filter(c =>
+                    c.constraint_type === 'blocked_slot' && c.day && c.start_time && c.end_time
+                )
+
+                // Get day-offs for this teacher
+                const dayOffs = constraints.filter(c => c.constraint_type === 'day_off')
+                const dayOffDays = new Set<string>()
+                dayOffs.forEach(d => {
+                    if (d.days) d.days.forEach(day => dayOffDays.add(day))
+                    if (d.day) dayOffDays.add(d.day)
+                })
+
+                // 1. Check for overlapping blocked slots on the same day
+                for (let i = 0; i < blockedSlots.length; i++) {
+                    for (let j = i + 1; j < blockedSlots.length; j++) {
+                        const slot1 = blockedSlots[i]
+                        const slot2 = blockedSlots[j]
+
+                        if (slot1.day === slot2.day &&
+                            slotsOverlap(slot1.start_time!, slot1.end_time!, slot2.start_time!, slot2.end_time!)) {
+                            errors.push({
+                                type: 'warning',
+                                message: `Overlapping blocked slots for ${teacherName}`,
+                                details: `${slot1.day}: ${slot1.start_time}-${slot1.end_time} overlaps with ${slot2.start_time}-${slot2.end_time}`
+                            })
+                        }
+                    }
+                }
+
+                // 2. Check for blocked slot on day-off (redundant)
+                blockedSlots.forEach(slot => {
+                    if (slot.day && dayOffDays.has(slot.day)) {
+                        errors.push({
+                            type: 'warning',
+                            message: `Redundant blocked slot for ${teacherName}`,
+                            details: `${slot.day} is already a day-off, blocked slot is unnecessary`
+                        })
+                    }
+                })
+
+                // 3. Check if time slots are within institution hours
+                if (config && config.start_time && config.end_time) {
+                    try {
+                        const dayStart = timeToMinutes(config.start_time)
+                        const dayEnd = timeToMinutes(config.end_time)
+
+                        blockedSlots.forEach(slot => {
+                            if (slot.start_time && slot.end_time) {
+                                const slotStart = timeToMinutes(slot.start_time)
+                                const slotEnd = timeToMinutes(slot.end_time)
+
+                                if (slotStart < dayStart) {
+                                    errors.push({
+                                        type: 'warning',
+                                        message: `Blocked slot starts before institution hours`,
+                                        details: `${teacherName}: ${slot.start_time} is before ${config.start_time}`
+                                    })
+                                }
+                                if (slotEnd > dayEnd) {
+                                    errors.push({
+                                        type: 'warning',
+                                        message: `Blocked slot ends after institution hours`,
+                                        details: `${teacherName}: ${slot.end_time} is after ${config.end_time}`
+                                    })
+                                }
+                                if (slotStart >= slotEnd) {
+                                    errors.push({
+                                        type: 'error',
+                                        message: `Invalid time range for ${teacherName}`,
+                                        details: `Start time ${slot.start_time} must be before end time ${slot.end_time}`
+                                    })
+                                }
+                            }
+                        })
+                    } catch (e) {
+                        // Ignore parsing errors
+                    }
+                }
+            })
+
+            return errors
+        } catch (error) {
+            console.error("Validation error:", error)
+            return []
+        }
+    }
+
+    // Helper to get teacher name by ID
+    const getTeacherNameById = (id: number) => {
+        const teacher = teachers?.find((t: Teacher) => t.id === id)
+        return teacher?.name || `Teacher ${id}`
+    }
+
+    // Calculate validation errors
+    const validationErrors = validateConstraints()
+    const hasErrors = validationErrors.some(e => e.type === 'error')
+    const hasWarnings = validationErrors.some(e => e.type === 'warning')
 
     // Fetch data
     const { data: constraintConfigs } = useQuery({
@@ -95,6 +241,7 @@ export function GenerateTimetable() {
             population_size: settings.population_size,
             generations: settings.generations,
             target_fitness: settings.target_fitness,
+            random_seed: settings.random_seed,
         }),
         onSuccess: (response) => {
             queryClient.invalidateQueries({ queryKey: ['timetables'] })
@@ -136,10 +283,7 @@ export function GenerateTimetable() {
         setTeacherConstraints(teacherConstraints.filter((_, i) => i !== index))
     }
 
-    const getTeacherName = (id: number) => {
-        const teacher = teachers?.find((t: Teacher) => t.id === id)
-        return teacher?.name || `Teacher ${id}`
-    }
+    const getTeacherName = (id: number) => getTeacherNameById(id)
 
     const selectedConfig = constraintConfigs?.find((c: ConstraintConfig) => c.id === selectedConfigId)
     const defaultConfig = constraintConfigs?.find((c: ConstraintConfig) => c.is_default)
@@ -583,10 +727,72 @@ export function GenerateTimetable() {
                                     Stop early when this score is reached
                                 </p>
                             </div>
+                            <div>
+                                <label className="text-sm font-medium mb-2 block">
+                                    Random Seed (Optional)
+                                </label>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 42"
+                                    value={settings.random_seed || ''}
+                                    onChange={(e) => setSettings({
+                                        ...settings,
+                                        random_seed: e.target.value ? parseInt(e.target.value) : undefined
+                                    })}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Use same seed for reproducible results
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 )}
             </Card>
+
+            {/* Validation Warnings Panel */}
+            {validationErrors.length > 0 && (
+                <Card className={cn(
+                    "border-2",
+                    hasErrors ? "border-destructive/50 bg-destructive/5" : "border-yellow-500/30 bg-yellow-500/5"
+                )}>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <AlertCircle className={cn(
+                                "h-5 w-5",
+                                hasErrors ? "text-destructive" : "text-yellow-500"
+                            )} />
+                            {hasErrors ? 'Configuration Errors' : 'Configuration Warnings'}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ul className="space-y-2">
+                            {validationErrors.map((error, index) => (
+                                <li key={index} className="flex items-start gap-2 text-sm">
+                                    <span className={cn(
+                                        "shrink-0 mt-0.5 h-4 w-4 rounded-full flex items-center justify-center text-xs font-bold",
+                                        error.type === 'error'
+                                            ? "bg-destructive text-destructive-foreground"
+                                            : "bg-yellow-500 text-white"
+                                    )}>
+                                        {error.type === 'error' ? '!' : '?'}
+                                    </span>
+                                    <div>
+                                        <p className="font-medium">{error.message}</p>
+                                        {error.details && (
+                                            <p className="text-muted-foreground text-xs">{error.details}</p>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                        {hasErrors && (
+                            <p className="mt-4 text-sm text-destructive font-medium">
+                                Please fix the errors above before generating.
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Generation Summary & Button */}
             <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-background">
@@ -598,12 +804,17 @@ export function GenerateTimetable() {
                                 <p>Profile: {selectedConfig?.name || defaultConfig?.name || 'Default'}</p>
                                 <p>Teacher Constraints: {teacherConstraints.length} ({teacherConstraints.filter(c => c.is_hard).length} hard)</p>
                                 <p>Settings: {settings.population_size} pop, {settings.generations} gen</p>
+                                {hasWarnings && !hasErrors && (
+                                    <p className="text-yellow-600 dark:text-yellow-400">
+                                        ⚠ {validationErrors.length} warning(s) - review recommended
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <Button
                             size="lg"
                             className="shadow-lg hover:shadow-xl transition-all min-w-[200px]"
-                            disabled={!hasDatasets || generateMutation.isPending}
+                            disabled={!hasDatasets || generateMutation.isPending || hasErrors}
                             onClick={() => generateMutation.mutate()}
                         >
                             {generateMutation.isPending ? (
@@ -642,11 +853,40 @@ export function GenerateTimetable() {
                         <div className="mt-6 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
                             <div className="flex items-center gap-3 text-destructive">
                                 <AlertCircle className="h-5 w-5" />
-                                <div>
+                                <div className="w-full">
                                     <p className="font-semibold">Generation Failed</p>
-                                    <p className="text-sm">
-                                        {(generateMutation.error as any)?.response?.data?.detail || 'An error occurred'}
-                                    </p>
+                                    <div className="text-sm mt-1">
+                                        {(() => {
+                                            const errorData = (generateMutation.error as any)?.response?.data;
+                                            const detail = errorData?.detail;
+                                            
+                                            if (typeof detail === 'string') {
+                                                return detail;
+                                            }
+                                            
+                                            if (detail && typeof detail === 'object') {
+                                                if (detail.message) {
+                                                     return (
+                                                        <div>
+                                                            <p>{detail.message}</p>
+                                                            {detail.validation_errors && (
+                                                                <ul className="list-disc pl-5 mt-2 space-y-1 text-xs opacity-90">
+                                                                    {detail.validation_errors.errors?.map((err: any, i: number) => (
+                                                                        <li key={i}>
+                                                                            <span className="font-medium">{err.error_type}:</span> {err.message}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            )}
+                                                        </div>
+                                                     );
+                                                }
+                                                return JSON.stringify(detail);
+                                            }
+                                            
+                                            return 'An unexpected error occurred';
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                         </div>

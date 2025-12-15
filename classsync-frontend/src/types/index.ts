@@ -116,6 +116,7 @@ export interface GenerateRequest {
     population_size: number
     generations: number
     target_fitness: number
+    random_seed?: number
 }
 
 export interface GenerateResponse {
