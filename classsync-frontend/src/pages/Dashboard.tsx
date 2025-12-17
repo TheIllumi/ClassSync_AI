@@ -8,6 +8,7 @@ import { timetablesApi, dashboardApi, healthApi } from '@/lib/api'
 import { formatDateTime, formatDate } from '@/lib/utils'
 
 export function Dashboard() {
+    // Dashboard component with stats and recent activity
     const navigate = useNavigate()
 
     // Fetch dashboard stats
