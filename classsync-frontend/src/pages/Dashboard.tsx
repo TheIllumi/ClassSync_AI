@@ -4,22 +4,22 @@ import { Calendar, Upload, Clock, CheckCircle, PieChart, AlertCircle, ArrowRight
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { timetablesApi, datasetsApi, healthApi } from '@/lib/api'
+import { timetablesApi, dashboardApi, healthApi } from '@/lib/api'
 import { formatDateTime, formatDate } from '@/lib/utils'
 
 export function Dashboard() {
     const navigate = useNavigate()
 
-    // Fetch timetables
+    // Fetch dashboard stats (Optimized)
+    const { data: stats } = useQuery({
+        queryKey: ['dashboard-stats'],
+        queryFn: () => dashboardApi.stats().then(res => res.data),
+    })
+
+    // Fetch recent timetables (for list)
     const { data: timetables } = useQuery({
         queryKey: ['timetables'],
         queryFn: () => timetablesApi.list().then(res => res.data),
-    })
-
-    // Fetch datasets
-    const { data: datasets } = useQuery({
-        queryKey: ['datasets'],
-        queryFn: () => datasetsApi.list().then(res => res.data),
     })
 
     // Fetch System Health
@@ -28,22 +28,6 @@ export function Dashboard() {
         queryFn: () => healthApi.check().then(res => res.data),
         refetchInterval: 30000,
     })
-
-    // Calculate Stats
-    const stats = {
-        totalTimetables: timetables?.length || 0,
-        totalDatasets: datasets?.length || 0,
-        activeSchedules: timetables?.filter((t: any) => t.status === 'COMPLETED').length || 0,
-        lastGenerated: timetables?.[0]?.created_at,
-    }
-
-    // Status Distribution
-    const statusCounts = {
-        completed: timetables?.filter((t: any) => t.status === 'COMPLETED').length || 0,
-        failed: timetables?.filter((t: any) => t.status === 'FAILED').length || 0,
-        pending: timetables?.filter((t: any) => t.status === 'PENDING' || t.status === 'GENERATING').length || 0,
-    }
-    const totalStatus = stats.totalTimetables || 1 // Avoid division by zero
 
     const isApiOperational = health?.components?.api === 'operational'
     const isDbOperational = health?.components?.database === 'operational'
@@ -54,6 +38,8 @@ export function Dashboard() {
         if (hour < 18) return 'Good afternoon'
         return 'Good evening'
     }
+
+    const totalStatus = stats?.total_timetables || 1
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -87,34 +73,31 @@ export function Dashboard() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total Timetables"
-                    value={stats.totalTimetables}
+                    value={stats?.total_timetables || 0}
                     icon={Calendar}
                     description="Generated schedules"
                     color="blue"
-                    trend={{ value: 12, isPositive: true }} // Mock trend
                 />
                 <StatsCard
                     title="Uploaded Datasets"
-                    value={stats.totalDatasets}
+                    value={stats?.total_datasets || 0}
                     icon={Upload}
                     description="Courses and rooms"
                     color="purple"
-                    trend={{ value: 5, isPositive: true }} // Mock trend
                 />
                 <StatsCard
                     title="Active Schedules"
-                    value={stats.activeSchedules}
+                    value={stats?.active_schedules || 0}
                     icon={CheckCircle}
                     description="Completed timetables"
                     color="green"
                 />
                 <StatsCard
                     title="Avg Generation Time"
-                    value="2.5 min"
+                    value={`${stats?.avg_generation_time || 0}s`}
                     icon={Clock}
                     description="Per timetable"
                     color="coral"
-                    trend={{ value: 8, isPositive: false }} // Mock trend
                 />
             </div>
 
@@ -195,44 +178,48 @@ export function Dashboard() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-5">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Completed</span>
-                                        <span className="font-medium">{statusCounts.completed}</span>
+                            {stats ? (
+                                <div className="space-y-5">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Completed</span>
+                                            <span className="font-medium">{stats.status_distribution.completed}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-green-500 rounded-full" 
+                                                style={{ width: `${(stats.status_distribution.completed / totalStatus) * 100}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-green-500 rounded-full" 
-                                            style={{ width: `${(statusCounts.completed / totalStatus) * 100}%` }}
-                                        />
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Pending</span>
+                                            <span className="font-medium">{stats.status_distribution.pending}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-yellow-500 rounded-full" 
+                                                style={{ width: `${(stats.status_distribution.pending / totalStatus) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Failed</span>
+                                            <span className="font-medium">{stats.status_distribution.failed}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-red-500 rounded-full" 
+                                                style={{ width: `${(stats.status_distribution.failed / totalStatus) * 100}%` }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Pending</span>
-                                        <span className="font-medium">{statusCounts.pending}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-yellow-500 rounded-full" 
-                                            style={{ width: `${(statusCounts.pending / totalStatus) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Failed</span>
-                                        <span className="font-medium">{statusCounts.failed}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-red-500 rounded-full" 
-                                            style={{ width: `${(statusCounts.failed / totalStatus) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                            ) : (
+                                <div className="text-center py-8 text-muted-foreground">Loading stats...</div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -275,13 +262,13 @@ export function Dashboard() {
                                 <div className="pt-2">
                                     <div className="flex items-center justify-between mb-2">
                                         <h4 className="text-sm font-medium">Data Readiness</h4>
-                                        <span className={datasets && datasets.length > 0 ? "text-xs text-green-600 dark:text-green-400 font-medium" : "text-xs text-amber-600 dark:text-amber-400 font-medium"}>
-                                            {datasets && datasets.length > 0 ? 'Ready' : 'Incomplete'}
+                                        <span className={stats && stats.total_datasets > 0 ? "text-xs text-green-600 dark:text-green-400 font-medium" : "text-xs text-amber-600 dark:text-amber-400 font-medium"}>
+                                            {stats && stats.total_datasets > 0 ? 'Ready' : 'Incomplete'}
                                         </span>
                                     </div>
                                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                         <div 
-                                            className={`h-full transition-all duration-1000 ease-out ${datasets && datasets.length > 0 ? 'bg-primary w-full' : 'bg-amber-400 w-[5%]'}`}
+                                            className={`h-full transition-all duration-1000 ease-out ${stats && stats.total_datasets > 0 ? 'bg-primary w-full' : 'bg-amber-400 w-[5%]'}`}
                                         />
                                     </div>
                                 </div>

@@ -460,7 +460,7 @@ async def hard_reset_all_data(
 
 @router.get("/timetables")
 async def list_timetables(
-    limit: int = 20,
+    limit: int = 100,
     db: Session = Depends(get_db),
     institution_id: str = Depends(get_institution_id)
 ):
