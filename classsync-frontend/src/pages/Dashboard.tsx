@@ -65,39 +65,47 @@ export function Dashboard() {
                 </div>
             </div>
 
-            {/* 2. Compact Stats Grid */}
+            {/* 2. Compact Stats Grid (Restored Details) */}
             <div className="grid gap-3 md:grid-cols-4 shrink-0">
                 <StatsCard
                     title="Timetables"
                     value={stats?.total_timetables || 0}
                     icon={Calendar}
                     color="blue"
-                    className="py-2"
+                    description="Generated schedules"
+                    trend={{ value: 12, isPositive: true }}
+                    className="py-1"
                 />
                 <StatsCard
                     title="Datasets"
                     value={stats?.total_datasets || 0}
                     icon={Upload}
                     color="purple"
-                    className="py-2"
+                    description="Courses and rooms"
+                    trend={{ value: 5, isPositive: true }}
+                    className="py-1"
                 />
                 <StatsCard
                     title="Active"
                     value={stats?.active_schedules || 0}
                     icon={CheckCircle}
                     color="green"
-                    className="py-2"
+                    description="Completed timetables"
+                    trend={{ value: 100, isPositive: true }}
+                    className="py-1"
                 />
                 <StatsCard
                     title="Avg Time"
                     value={`${stats?.avg_generation_time || 0}s`}
                     icon={Clock}
                     color="coral"
-                    className="py-2"
+                    description="Per generation cycle"
+                    trend={{ value: 8, isPositive: false }}
+                    className="py-1"
                 />
             </div>
 
-            {/* 3. Main Content Area (Fill remaining height) */}
+            {/* 3. Main Content Area */}
             <div className="grid gap-4 md:grid-cols-12 flex-1 min-h-0">
                 
                 {/* Recent Activity - Takes 8 columns */}
@@ -165,7 +173,7 @@ export function Dashboard() {
                                 Status Overview
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 flex-1 flex flex-col justify-center gap-3">
+                        <CardContent className="p-4 flex-1 flex flex-col justify-start gap-4 pt-5">
                             {stats ? (
                                 <>
                                     {['completed', 'pending', 'failed'].map((status) => {
@@ -201,7 +209,7 @@ export function Dashboard() {
                                 System Health
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 flex-1 flex flex-col justify-center gap-3">
+                        <CardContent className="p-4 flex-1 flex flex-col justify-start gap-4 pt-5">
                             {/* Optimizer */}
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -225,7 +233,7 @@ export function Dashboard() {
                             </div>
 
                             {/* Data Readiness */}
-                            <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-1">
+                            <div className="flex items-center justify-between pt-2 border-t border-border/40">
                                 <span className="text-xs font-medium text-muted-foreground">Data Readiness</span>
                                 <span className={`text-[10px] font-semibold ${stats && stats.total_datasets > 0 ? 'text-green-600' : 'text-amber-500'}`}>
                                     {stats && stats.total_datasets > 0 ? 'Ready' : 'Pending Upload'}

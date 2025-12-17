@@ -40,34 +40,35 @@ export function StatsCard({
                           }: StatsCardProps) {
     return (
         <Card className={cn(
-            "transition-all hover:shadow-lg hover:-translate-y-1 bg-gradient-to-br",
+            "transition-all hover:shadow-md hover:-translate-y-0.5 bg-gradient-to-br shadow-sm",
             gradientClasses[color],
             className
         )}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {title}
                 </CardTitle>
-                <div className={cn("rounded-lg p-2", colorClasses[color])}>
-                    <Icon className="h-4 w-4" />
+                <div className={cn("rounded-md p-1.5", colorClasses[color])}>
+                    <Icon className="h-3.5 w-3.5" />
                 </div>
             </CardHeader>
-            <CardContent>
-                <div className="text-3xl font-bold">{value}</div>
-                {description && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                        {description}
-                    </p>
-                )}
-                {trend && (
-                    <div className="flex items-center gap-1 mt-2">
-            <span className={cn(
-                "text-xs font-medium",
-                trend.isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-            )}>
-              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
-            </span>
-                        <span className="text-xs text-muted-foreground">vs last month</span>
+            <CardContent className="p-3 pt-0">
+                <div className="text-2xl font-bold tracking-tight">{value}</div>
+                {(description || trend) && (
+                    <div className="flex items-center gap-2 mt-1 min-h-[20px]">
+                        {trend && (
+                            <span className={cn(
+                                "text-[10px] font-bold flex items-center bg-background/50 px-1 rounded",
+                                trend.isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            )}>
+                                {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
+                            </span>
+                        )}
+                        {description && (
+                            <p className="text-[10px] text-muted-foreground truncate leading-none">
+                                {description}
+                            </p>
+                        )}
                     </div>
                 )}
             </CardContent>
