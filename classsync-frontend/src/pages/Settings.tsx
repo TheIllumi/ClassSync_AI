@@ -88,15 +88,15 @@ export function Settings() {
             <div className="flex-1 min-h-0 grid gap-6 lg:grid-cols-12">
                 
                 {/* Left: Profiles List */}
-                <div className="lg:col-span-4 flex flex-col min-h-0">
-                    <Card className="flex-1 flex flex-col overflow-hidden border-border/60 shadow-sm bg-card/50">
+                <div className="lg:col-span-4 flex flex-col">
+                    <Card className="border-border/60 shadow-sm bg-card/50">
                         <CardHeader className="py-4 px-6 border-b bg-muted/10 shrink-0">
                             <CardTitle className="text-sm font-semibold flex items-center gap-2">
                                 <Sliders className="h-4 w-4 text-muted-foreground" />
                                 Constraint Profiles
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-0 flex-1 overflow-y-auto">
+                        <CardContent className="p-0 overflow-y-auto max-h-[calc(100vh-300px)]">
                             {isLoading ? (
                                 <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
                             ) : configs.length > 0 ? (
