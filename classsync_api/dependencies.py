@@ -35,7 +35,7 @@ async def get_current_user(token: Optional[str] = Header(None, alias="Authorizat
     # For now, return a mock user
     return {
         "user_id": "dev_user",
-        "institution_id": "dev_institution",
+        "institution_id": "1",
         "role": "admin"
     }
 
@@ -47,5 +47,5 @@ async def get_institution_id(current_user: dict = Depends(get_current_user)) -> 
     This is a placeholder - we'll implement properly in Phase 9.
     """
     if current_user:
-        return current_user.get("institution_id", "dev_institution")
-    return "dev_institution"
+        return current_user.get("institution_id", "1")
+    return "1"
