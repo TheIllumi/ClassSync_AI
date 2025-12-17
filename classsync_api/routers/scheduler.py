@@ -4,14 +4,14 @@ Timetable generation and scheduling endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import joinedload
 
 from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id
 from classsync_api.schemas import MessageResponse, TimetableUpdate, GenerateRequest
-from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry
+from classsync_core.models import Timetable, ConstraintConfig, TimetableEntry, Section, Teacher, Room, Course
 from classsync_core.optimizer import TimetableOptimizer, ValidationFailedError
 from fastapi import Body
 
@@ -26,6 +26,139 @@ router = APIRouter(
     prefix="/scheduler",
     tags=["Scheduler"]
 )
+
+
+def validate_dataset_integrity(db: Session, institution_id: int) -> Dict[str, Any]:
+    """
+    Validate that all required dataset entities exist and are consistent
+    before allowing timetable generation.
+
+    Returns:
+        Dict with 'valid' boolean and 'errors' list
+    """
+    from sqlalchemy import text
+
+    errors = []
+    warnings = []
+
+    # 1. Check for active sections with teachers
+    try:
+        # Check if teachers are assigned via courses
+        result = db.execute(text("""
+            SELECT s.id, s.code, c.code as course_code, c.teacher_id as course_teacher_id, s.teacher_id as section_teacher_id
+            FROM sections s
+            JOIN courses c ON s.course_id = c.id
+            WHERE s.institution_id = :inst_id AND s.is_deleted = false AND c.is_deleted = false
+        """), {"inst_id": institution_id})
+        section_rows = result.fetchall()
+    except Exception as e:
+        print(f"[Validation] Error querying sections: {e}")
+        section_rows = []
+
+    if not section_rows:
+        errors.append("No active sections found. Please upload a course dataset first.")
+    else:
+        # Check sections have valid teachers
+        sections_without_teachers = []
+        for row in section_rows:
+            has_teacher = False
+            teacher_id_to_check = None
+
+            if hasattr(row, 'section_teacher_id') and row.section_teacher_id:
+                 teacher_id_to_check = row.section_teacher_id
+            elif hasattr(row, 'course_teacher_id') and row.course_teacher_id:
+                teacher_id_to_check = row.course_teacher_id
+
+            if teacher_id_to_check:
+                teacher = db.query(Teacher).filter(
+                    Teacher.id == teacher_id_to_check,
+                    Teacher.is_deleted == False
+                ).first()
+                has_teacher = teacher is not None
+
+            if not has_teacher:
+                course_code = row.course_code if hasattr(row, 'course_code') else 'Unknown'
+                sections_without_teachers.append(f"{course_code}-{row.code}")
+
+        if sections_without_teachers:
+            if len(sections_without_teachers) > 5:
+                errors.append(
+                    f"{len(sections_without_teachers)} sections have no valid teacher. "
+                    f"Examples: {', '.join(sections_without_teachers[:5])}..."
+                )
+            else:
+                errors.append(
+                    f"Sections without valid teachers: {', '.join(sections_without_teachers)}"
+                )
+
+    # 2. Check for active rooms
+    rooms = db.query(Room).filter(
+        Room.institution_id == institution_id,
+        Room.is_available == True,
+        Room.is_deleted == False
+    ).all()
+
+    if not rooms:
+        errors.append("No available rooms found. Please upload a room dataset or ensure rooms are marked as available.")
+    else:
+        # Check for lab rooms if we have lab courses
+        lab_sections = db.query(Section).join(Course).filter(
+            Section.institution_id == institution_id,
+            Section.is_deleted == False,
+            Course.is_deleted == False,
+            Course.course_type == 'lab'
+        ).count()
+
+        lab_rooms = [r for r in rooms if r.room_type and r.room_type.value == 'lab']
+
+        if lab_sections > 0 and not lab_rooms:
+            warnings.append(f"No lab rooms available but {lab_sections} lab sections exist. Labs may be assigned to lecture rooms.")
+
+    # 3. Check for active constraint config
+    config = db.query(ConstraintConfig).filter(
+        ConstraintConfig.institution_id == institution_id,
+        ConstraintConfig.is_active == True
+    ).first()
+
+    if not config:
+        # Check for default config
+        default_config = db.query(ConstraintConfig).filter(
+            ConstraintConfig.institution_id == institution_id,
+            ConstraintConfig.is_default == True
+        ).first()
+
+        if not default_config:
+            errors.append("No active constraint configuration found. Please configure scheduling constraints.")
+
+    # 4. Check for active courses
+    courses = db.query(Course).filter(
+        Course.institution_id == institution_id,
+        Course.is_deleted == False
+    ).count()
+
+    if courses == 0:
+        errors.append("No active courses found. Please upload a course dataset.")
+
+    # 5. Check for active teachers
+    teachers = db.query(Teacher).filter(
+        Teacher.institution_id == institution_id,
+        Teacher.is_deleted == False
+    ).count()
+
+    if teachers == 0:
+        errors.append("No active teachers found. Teachers are derived from the course dataset - please ensure the dataset includes instructor information.")
+
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors,
+        'warnings': warnings,
+        'stats': {
+            'sections': len(section_rows) if section_rows else 0,
+            'rooms': len(rooms) if rooms else 0,
+            'courses': courses,
+            'teachers': teachers
+        }
+    }
 
 
 @router.post("/generate")
@@ -47,6 +180,26 @@ async def generate_timetable(
             - generations: Number of GA generations (50-300)
             - target_fitness: Target fitness score (50-100)
     """
+    # Pre-generation validation - ensure dataset integrity
+    validation = validate_dataset_integrity(db, 1)  # institution_id = 1
+
+    if not validation['valid']:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Dataset integrity validation failed",
+                "validation_errors": validation['errors'],
+                "warnings": validation['warnings'],
+                "stats": validation['stats'],
+                "help": "Please ensure your dataset is properly uploaded before generating a timetable. "
+                        "Teachers, courses, and sections must all be derived from the current dataset."
+            }
+        )
+
+    # Log warnings if any
+    if validation['warnings']:
+        print(f"[Scheduler] Generation warnings: {validation['warnings']}")
+
     # Get constraint config
     if request.constraint_config_id:
         config = db.query(ConstraintConfig).get(request.constraint_config_id)
@@ -120,6 +273,189 @@ async def generate_timetable(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+
+@router.get("/validate")
+async def validate_generation_readiness(
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    Validate that the system is ready for timetable generation.
+
+    Checks:
+    - Active sections with teachers exist
+    - Rooms are available
+    - Constraint configuration exists
+    - All data is derived from current dataset
+
+    Returns:
+        Validation result with errors, warnings, and statistics
+    """
+    validation = validate_dataset_integrity(db, 1)  # institution_id = 1
+
+    return {
+        "ready": validation['valid'],
+        "errors": validation['errors'],
+        "warnings": validation['warnings'],
+        "statistics": validation['stats'],
+        "message": "Ready for timetable generation" if validation['valid'] else "Dataset validation failed - please fix errors before generating"
+    }
+
+
+@router.get("/debug/database-state")
+async def debug_database_state(
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    DEBUG ENDPOINT: Check current state of teachers, courses, and sections in database.
+
+    Shows both active and soft-deleted records to diagnose data persistence issues.
+    """
+    from sqlalchemy import text
+
+    # Get all teachers (both active and deleted)
+    all_teachers = db.execute(text("""
+        SELECT id, name, code, is_deleted, created_at, deleted_at
+        FROM teachers
+        WHERE institution_id = 1
+        ORDER BY is_deleted, created_at DESC
+    """)).fetchall()
+
+    # Get active teachers only
+    active_teachers = [t for t in all_teachers if not t.is_deleted]
+    deleted_teachers = [t for t in all_teachers if t.is_deleted]
+
+    # Get all courses
+    all_courses = db.execute(text("""
+        SELECT id, code, name, is_deleted, created_at
+        FROM courses
+        WHERE institution_id = 1
+        ORDER BY is_deleted, created_at DESC
+    """)).fetchall()
+
+    active_courses = [c for c in all_courses if not c.is_deleted]
+    deleted_courses = [c for c in all_courses if c.is_deleted]
+
+    # Get all sections
+    all_sections = db.execute(text("""
+        SELECT id, code, course_id, is_deleted, created_at
+        FROM sections
+        WHERE institution_id = 1
+        ORDER BY is_deleted, created_at DESC
+    """)).fetchall()
+
+    active_sections = [s for s in all_sections if not s.is_deleted]
+    deleted_sections = [s for s in all_sections if s.is_deleted]
+
+    # Get datasets
+    datasets = db.execute(text("""
+        SELECT id, filename, status, created_at, s3_key
+        FROM datasets
+        WHERE institution_id = 1
+        ORDER BY created_at DESC
+        LIMIT 10
+    """)).fetchall()
+
+    return {
+        "summary": {
+            "active_teachers": len(active_teachers),
+            "deleted_teachers": len(deleted_teachers),
+            "active_courses": len(active_courses),
+            "deleted_courses": len(deleted_courses),
+            "active_sections": len(active_sections),
+            "deleted_sections": len(deleted_sections),
+            "total_datasets": len(datasets)
+        },
+        "active_teachers": [
+            {"id": t.id, "name": t.name, "code": t.code, "created_at": str(t.created_at)}
+            for t in active_teachers[:20]  # Limit to 20
+        ],
+        "deleted_teachers_sample": [
+            {"id": t.id, "name": t.name, "code": t.code, "deleted_at": str(t.deleted_at)}
+            for t in deleted_teachers[:10]  # Sample of 10
+        ],
+        "active_courses_sample": [
+            {"id": c.id, "code": c.code, "name": c.name}
+            for c in active_courses[:10]
+        ],
+        "recent_datasets": [
+            {"id": d.id, "filename": d.filename, "status": d.status, "created_at": str(d.created_at)}
+            for d in datasets
+        ],
+        "diagnosis": {
+            "issue_detected": len(deleted_teachers) > 0 and len(active_teachers) > 0,
+            "message": (
+                f"Found {len(active_teachers)} active teachers and {len(deleted_teachers)} deleted teachers. "
+                f"If active teachers are from an OLD dataset, the clear_data() may not be working properly."
+            )
+        }
+    }
+
+
+@router.delete("/debug/hard-reset")
+async def hard_reset_all_data(
+        confirm: bool = False,
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    DANGER: Hard delete ALL teachers, courses, sections, and timetable entries.
+
+    This completely removes all data (not soft-delete) to allow a fresh start.
+    Use this when soft-deleted data is causing issues.
+
+    Args:
+        confirm: Must be True to execute the reset
+    """
+    if not confirm:
+        return {
+            "warning": "This will PERMANENTLY DELETE all teachers, courses, sections, and timetable entries!",
+            "instruction": "Add ?confirm=true to the URL to proceed",
+            "affected": "All data for institution_id=1 will be deleted"
+        }
+
+    from sqlalchemy import text
+
+    try:
+        # Delete in correct order (children first, then parents)
+        # 1. Delete timetable entries first
+        entries_deleted = db.execute(text("DELETE FROM timetable_entries WHERE timetable_id IN (SELECT id FROM timetables WHERE institution_id = 1)"))
+
+        # 2. Delete timetables
+        timetables_deleted = db.execute(text("DELETE FROM timetables WHERE institution_id = 1"))
+
+        # 3. Delete sections (reference courses)
+        sections_deleted = db.execute(text("DELETE FROM sections WHERE institution_id = 1"))
+
+        # 4. Delete courses (reference teachers)
+        courses_deleted = db.execute(text("DELETE FROM courses WHERE institution_id = 1"))
+
+        # 5. Delete teachers
+        teachers_deleted = db.execute(text("DELETE FROM teachers WHERE institution_id = 1"))
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "All data has been permanently deleted",
+            "deleted": {
+                "timetable_entries": entries_deleted.rowcount,
+                "timetables": timetables_deleted.rowcount,
+                "sections": sections_deleted.rowcount,
+                "courses": courses_deleted.rowcount,
+                "teachers": teachers_deleted.rowcount
+            },
+            "next_steps": [
+                "Upload a new course dataset via /api/v1/datasets/upload",
+                "The new dataset will be the SINGLE source of truth for teachers"
+            ]
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Hard reset failed: {str(e)}")
 
 
 @router.get("/timetables")
@@ -303,8 +639,8 @@ async def export_timetable(
         raise HTTPException(status_code=400, detail="Invalid format. Use: xlsx, csv, or json")
 
     # Validate view_type
-    if view_type not in ['master', 'section', 'teacher', 'room']:
-        raise HTTPException(status_code=400, detail="Invalid view_type. Use: master, section, teacher, or room")
+    if view_type not in ['master', 'section', 'teacher', 'room', 'program', 'free_slots']:
+        raise HTTPException(status_code=400, detail="Invalid view_type. Use: master, section, teacher, room, program, or free_slots")
 
     # Create export manager
     export_manager = ExportManager(db)
@@ -417,6 +753,14 @@ async def get_available_export_formats(
             {
                 "view_type": "room",
                 "description": "Separate sheet/file for each room"
+            },
+            {
+                "view_type": "program",
+                "description": "Separate sheet/file for each program"
+            },
+            {
+                "view_type": "free_slots",
+                "description": "List of all unallocated time slots"
             }
         ]
     }
