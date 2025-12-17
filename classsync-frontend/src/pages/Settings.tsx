@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Plus, Trash2, Check, Sliders, Cpu, Settings2, Clock, AlertTriangle, Calendar, ChevronRight } from 'lucide-react'
+import { Save, Plus, Trash2, Check, Sliders, Cpu, Settings2, Clock, AlertTriangle, Calendar, X, Edit2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,22 +15,42 @@ type ConstraintConfig = {
     timeslot_duration_minutes: number
     start_time: string
     end_time: string
-    hard_constraints?: Record<string, unknown>
-    soft_constraints?: Record<string, number | boolean>
+    hard_constraints?: Record<string, boolean>
+    soft_constraints?: Record<string, any>
+    max_optimization_time_seconds?: number
+    min_acceptable_score?: number
 }
+
+// Modal Component (Inline for simplicity since UI lib is limited)
+const Modal = ({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <Card className="w-full max-w-md bg-background border shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between py-4 border-b">
+                <CardTitle className="text-lg">{title}</CardTitle>
+                <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                </Button>
+            </CardHeader>
+            <CardContent className="p-6">
+                {children}
+            </CardContent>
+        </Card>
+    </div>
+)
 
 export function Settings() {
     const queryClient = useQueryClient()
 
     const [selectedConfig, setSelectedConfig] = useState<ConstraintConfig | null>(null)
+    const [isCreating, setIsCreating] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
 
+    // Form States
+    const [formData, setFormData] = useState<Partial<ConstraintConfig>>({})
     const [optimizerSettings, setOptimizerSettings] = useState({
         population_size: 30,
         generations: 100,
-        mutation_rate: 0.15,
-        elite_size: 3,
         max_time: 300,
-        min_score: 0.7,
     })
 
     // Fetch constraint configs
@@ -42,32 +62,110 @@ export function Settings() {
     // Set default mutation
     const setDefaultMutation = useMutation({
         mutationFn: (id: number) => constraintsApi.setDefault(id),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ['constraints'] })
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['constraints'] })
         },
     })
 
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: (id: number) => constraintsApi.delete(id),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ['constraints'] })
-            setSelectedConfig(null)
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['constraints'] })
+            if (selectedConfig) setSelectedConfig(null)
+        },
+    })
+
+    // Create mutation
+    const createMutation = useMutation({
+        mutationFn: (data: Partial<ConstraintConfig>) => constraintsApi.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['constraints'] })
+            setIsCreating(false)
+            setFormData({})
+        },
+    })
+
+    // Update mutation
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: number; data: Partial<ConstraintConfig> }) => 
+            constraintsApi.update(id, data),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['constraints'] })
+            setIsEditing(false)
+            // Update selected config with new data
+            if (selectedConfig?.id === data.data.id) {
+                setSelectedConfig(data.data)
+            }
         },
     })
 
     const defaultConfig = configs.find(c => c.is_default)
     const activeConfig = selectedConfig || defaultConfig
 
-    // Helpers for numeric inputs with guards
-    const toInt = (v: string, fallback = 0) => {
-        const n = parseInt(v, 10)
-        return Number.isFinite(n) ? n : fallback
+    // Initialize optimizer settings when config changes
+    useEffect(() => {
+        if (activeConfig) {
+            setOptimizerSettings({
+                population_size: 30, // Not persisted in DB currently, mock default
+                generations: 100, // Not persisted
+                max_time: activeConfig.max_optimization_time_seconds || 300
+            })
+        }
+    }, [activeConfig])
+
+    const handleCreate = () => {
+        createMutation.mutate({
+            name: formData.name || 'New Profile',
+            days_per_week: formData.days_per_week || 5,
+            timeslot_duration_minutes: formData.timeslot_duration_minutes || 60,
+            start_time: formData.start_time || '08:00',
+            end_time: formData.end_time || '17:00',
+            hard_constraints: {
+                no_teacher_overlap: true,
+                no_room_overlap: true
+            },
+            soft_constraints: {
+                minimize_gaps: 5
+            }
+        })
     }
-    const toFloat = (v: string, fallback = 0) => {
-        const n = parseFloat(v)
-        return Number.isFinite(n) ? n : fallback
+
+    const handleUpdate = () => {
+        if (!activeConfig) return
+        updateMutation.mutate({
+            id: activeConfig.id,
+            data: {
+                ...formData,
+                // Include optimizer settings updates if needed
+            }
+        })
     }
+
+    const handleOptimizerSave = () => {
+        if (!activeConfig) return
+        updateMutation.mutate({
+            id: activeConfig.id,
+            data: {
+                max_optimization_time_seconds: optimizerSettings.max_time
+            }
+        })
+    }
+
+    const startEditing = () => {
+        if (!activeConfig) return
+        setFormData({
+            name: activeConfig.name,
+            days_per_week: activeConfig.days_per_week,
+            timeslot_duration_minutes: activeConfig.timeslot_duration_minutes,
+            start_time: activeConfig.start_time,
+            end_time: activeConfig.end_time
+        })
+        setIsEditing(true)
+    }
+
+    // Helpers
+    const toInt = (v: string) => parseInt(v) || 0
 
     return (
         <div className="flex flex-col h-[calc(100vh-2rem)] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-2">
@@ -79,10 +177,70 @@ export function Settings() {
                         Configure scheduling constraints and algorithm parameters.
                     </p>
                 </div>
-                <Button size="sm" onClick={() => alert('Create feature coming soon!')}>
+                <Button size="sm" onClick={() => { setFormData({}); setIsCreating(true) }}>
                     <Plus className="mr-2 h-4 w-4" /> New Profile
                 </Button>
             </div>
+
+            {/* Create Modal */}
+            {isCreating && (
+                <Modal title="Create New Profile" onClose={() => setIsCreating(false)}>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Profile Name</label>
+                            <Input 
+                                placeholder="e.g. Summer Semester" 
+                                value={formData.name || ''} 
+                                onChange={e => setFormData({...formData, name: e.target.value})}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Days / Week</label>
+                                <Input 
+                                    type="number" 
+                                    value={formData.days_per_week || ''} 
+                                    onChange={e => setFormData({...formData, days_per_week: toInt(e.target.value)})}
+                                    placeholder="5"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Slot Duration (min)</label>
+                                <Input 
+                                    type="number" 
+                                    value={formData.timeslot_duration_minutes || ''} 
+                                    onChange={e => setFormData({...formData, timeslot_duration_minutes: toInt(e.target.value)})}
+                                    placeholder="60"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Start Time</label>
+                                <Input 
+                                    value={formData.start_time || ''} 
+                                    onChange={e => setFormData({...formData, start_time: e.target.value})}
+                                    placeholder="08:00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">End Time</label>
+                                <Input 
+                                    value={formData.end_time || ''} 
+                                    onChange={e => setFormData({...formData, end_time: e.target.value})}
+                                    placeholder="17:00"
+                                />
+                            </div>
+                        </div>
+                        <div className="pt-4 flex justify-end gap-2">
+                            <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
+                            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                                {createMutation.isPending ? 'Creating...' : 'Create Profile'}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Main Content Grid */}
             <div className="flex-1 min-h-0 grid gap-6 lg:grid-cols-12">
@@ -110,7 +268,10 @@ export function Settings() {
                                                     ? "bg-muted/20 border-l-primary" 
                                                     : "border-l-transparent"
                                             )}
-                                            onClick={() => setSelectedConfig(config)}
+                                            onClick={() => {
+                                                setSelectedConfig(config)
+                                                setIsEditing(false)
+                                            }}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <span className={cn(
@@ -180,40 +341,82 @@ export function Settings() {
                     {activeConfig ? (
                         <Card className="border-border/60 shadow-sm shrink-0">
                             <CardHeader className="py-4 px-6 border-b bg-muted/10 flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-base font-semibold">{activeConfig.name}</CardTitle>
-                                    <CardDescription className="text-xs mt-0.5">
-                                        {activeConfig.is_default ? 'System Default Profile' : 'Custom Configuration'}
-                                    </CardDescription>
+                                <div className="flex-1">
+                                    {isEditing ? (
+                                        <Input 
+                                            value={formData.name} 
+                                            onChange={e => setFormData({...formData, name: e.target.value})}
+                                            className="h-8 font-semibold text-base max-w-sm"
+                                        />
+                                    ) : (
+                                        <>
+                                            <CardTitle className="text-base font-semibold">{activeConfig.name}</CardTitle>
+                                            <CardDescription className="text-xs mt-0.5">
+                                                {activeConfig.is_default ? 'System Default Profile' : 'Custom Configuration'}
+                                            </CardDescription>
+                                        </>
+                                    )}
                                 </div>
-                                {!activeConfig.is_default && (
-                                    <Button variant="outline" size="sm" className="h-7 text-xs">
-                                        Edit Details
-                                    </Button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {isEditing ? (
+                                        <>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                            <Button size="sm" onClick={handleUpdate} disabled={updateMutation.isPending}>
+                                                <Save className="mr-2 h-3 w-3" /> Save
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={startEditing}>
+                                            <Edit2 className="mr-2 h-3 w-3" /> Edit Details
+                                        </Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="p-6 space-y-6">
                                 {/* Time Grid */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                    <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
-                                        <p className="text-xs text-muted-foreground mb-1">Schedule Days</p>
-                                        <p className="text-lg font-bold">{activeConfig.days_per_week}</p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
-                                        <p className="text-xs text-muted-foreground mb-1">Slot Duration</p>
-                                        <p className="text-lg font-bold">{activeConfig.timeslot_duration_minutes}m</p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
-                                        <p className="text-xs text-muted-foreground mb-1">Start Time</p>
-                                        <p className="text-lg font-bold">{activeConfig.start_time}</p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
-                                        <p className="text-xs text-muted-foreground mb-1">End Time</p>
-                                        <p className="text-lg font-bold">{activeConfig.end_time}</p>
-                                    </div>
+                                    {isEditing ? (
+                                        <>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+                                                <p className="text-xs text-muted-foreground">Days / Week</p>
+                                                <Input type="number" value={formData.days_per_week} onChange={e => setFormData({...formData, days_per_week: toInt(e.target.value)})} className="h-7" />
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+                                                <p className="text-xs text-muted-foreground">Duration (m)</p>
+                                                <Input type="number" value={formData.timeslot_duration_minutes} onChange={e => setFormData({...formData, timeslot_duration_minutes: toInt(e.target.value)})} className="h-7" />
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+                                                <p className="text-xs text-muted-foreground">Start Time</p>
+                                                <Input value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} className="h-7" />
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50 space-y-2">
+                                                <p className="text-xs text-muted-foreground">End Time</p>
+                                                <Input value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} className="h-7" />
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                                                <p className="text-xs text-muted-foreground mb-1">Schedule Days</p>
+                                                <p className="text-lg font-bold">{activeConfig.days_per_week}</p>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                                                <p className="text-xs text-muted-foreground mb-1">Slot Duration</p>
+                                                <p className="text-lg font-bold">{activeConfig.timeslot_duration_minutes}m</p>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                                                <p className="text-xs text-muted-foreground mb-1">Start Time</p>
+                                                <p className="text-lg font-bold">{activeConfig.start_time}</p>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                                                <p className="text-xs text-muted-foreground mb-1">End Time</p>
+                                                <p className="text-lg font-bold">{activeConfig.end_time}</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
-                                {/* Constraints Grid */}
+                                {/* Constraints Grid (ReadOnly for now as simple edit, advanced edit in future) */}
                                 <div className="grid md:grid-cols-2 gap-6 pt-2">
                                     {/* Hard Constraints */}
                                     <div>
@@ -270,7 +473,7 @@ export function Settings() {
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium">Population Size</label>
+                                    <label className="text-xs font-medium">Population Size (Mock)</label>
                                     <Input
                                         type="number"
                                         className="h-8 text-sm"
@@ -279,31 +482,12 @@ export function Settings() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium">Generations</label>
+                                    <label className="text-xs font-medium">Generations (Mock)</label>
                                     <Input
                                         type="number"
                                         className="h-8 text-sm"
                                         value={optimizerSettings.generations}
                                         onChange={(e) => setOptimizerSettings(s => ({ ...s, generations: toInt(e.target.value) }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium">Mutation Rate</label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        className="h-8 text-sm"
-                                        value={optimizerSettings.mutation_rate}
-                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, mutation_rate: toFloat(e.target.value) }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium">Elite Size</label>
-                                    <Input
-                                        type="number"
-                                        className="h-8 text-sm"
-                                        value={optimizerSettings.elite_size}
-                                        onChange={(e) => setOptimizerSettings(s => ({ ...s, elite_size: toInt(e.target.value) }))}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -316,7 +500,12 @@ export function Settings() {
                                     />
                                 </div>
                                 <div className="flex items-end">
-                                    <Button size="sm" className="w-full h-8" onClick={() => alert('Settings saved locally.')}>
+                                    <Button 
+                                        size="sm" 
+                                        className="w-full h-8" 
+                                        onClick={handleOptimizerSave}
+                                        disabled={updateMutation.isPending}
+                                    >
                                         <Save className="mr-2 h-3 w-3" /> Save Config
                                     </Button>
                                 </div>
