@@ -203,6 +203,7 @@ class Section(Base, TimestampMixin, SoftDeleteMixin):
     id = Column(Integer, primary_key=True, index=True)
     institution_id = Column(Integer, ForeignKey("institutions.id"), nullable=False, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True, index=True)
 
     code = Column(String(50), nullable=False)
     name = Column(String(255))
@@ -213,6 +214,7 @@ class Section(Base, TimestampMixin, SoftDeleteMixin):
     # Relationships
     institution = relationship("Institution", back_populates="sections")
     course = relationship("Course", back_populates="sections")
+    teacher = relationship("Teacher")
     timetable_entries = relationship("TimetableEntry", back_populates="section")
 
 

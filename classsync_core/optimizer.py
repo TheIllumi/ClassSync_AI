@@ -405,82 +405,96 @@ class TimetableOptimizer:
         - Duration_Minutes
         - Is_Lab
         - Session_Number
+
+        Uses Course's teacher_id for instructor assignment.
         """
         print(f"[Optimizer] Preparing sessions for Institution ID: {institution_id}")
 
-        # Query courses with relationships
-        courses = db.query(Course).filter(
+        # Get courses with their teachers (only active, non-deleted)
+        courses = db.query(Course).join(Teacher).filter(
             Course.institution_id == institution_id,
-            Course.is_deleted == False
+            Course.is_deleted == False,
+            Teacher.is_deleted == False
         ).all()
-        
-        print(f"[Optimizer] Found {len(courses)} active courses.")
+
+        print(f"[Optimizer] Found {len(courses)} active courses with active teachers.")
+
+        valid_sections = []
+        for course in courses:
+            # Get sections for this course, eager load teacher
+            from sqlalchemy.orm import joinedload
+            course_sections = db.query(Section).options(joinedload(Section.teacher)).filter(
+                Section.course_id == course.id,
+                Section.is_deleted == False
+            ).all()
+
+            for section in course_sections:
+                # Use section teacher if available, else course teacher
+                teacher_to_use = section.teacher if (section.teacher and not section.teacher.is_deleted) else course.teacher
+                
+                if teacher_to_use and not teacher_to_use.is_deleted:
+                    valid_sections.append((section, teacher_to_use))
+                else:
+                    print(f"[Optimizer] Warning: Section {section.code} of {course.code} has no valid teacher. Skipping.")
+
+        print(f"[Optimizer] Found {len(valid_sections)} valid sections with teachers.")
 
         sessions = []
         lab_count = 0
         theory_count = 0
 
-        for course in courses:
-            # Get sections for this course
-            course_sections = db.query(Section).filter(
-                Section.course_id == course.id,
-                Section.is_deleted == False
-            ).all()
-            
-            if not course_sections:
-                print(f"[Optimizer] Warning: Course {course.code} has 0 sections. Skipping.")
-                continue
+        for section, teacher in valid_sections:
+            course = section.course
 
-            for section in course_sections:
-                # Determine session breakdown
-                # Strict lab check: explicit type OR "lab" as a distinct word in name
-                is_lab = (course.course_type == 'lab') or ('lab' in course.name.lower().split())
+            # Determine session breakdown
+            # Strict lab check: explicit type OR "lab" as a distinct word in name
+            is_lab = (course.course_type == 'lab') or ('lab' in course.name.lower().split())
 
-                if is_lab:
-                    # Labs: single 180-min session
+            if is_lab:
+                # Labs: single 180-min session
+                sessions.append({
+                    'Session_Key': f"{course.code}-{section.code}-LAB-1",
+                    'Course_ID': course.id,
+                    'Course_Code': course.code,
+                    'Course_Name': course.name,
+                    'Section_ID': section.id,
+                    'Section_Code': section.code,
+                    'Teacher_ID': teacher.id,  # Use section-specific teacher
+                    'Instructor': teacher.name,  # Use section-specific teacher name
+                    'Duration_Minutes': 180,
+                    'Is_Lab': True,
+                    'Session_Number': 1
+                })
+                lab_count += 1
+            else:
+                # Theory: Multiple sessions based on credit hours
+                credit_hours = int(course.credit_hours) if course.credit_hours else 3
+
+                if credit_hours == 2:
+                    num_sessions = 1
+                    duration = 120
+                elif credit_hours == 3:
+                    num_sessions = 2
+                    duration = 90
+                else:
+                    num_sessions = credit_hours
+                    duration = 90
+
+                for i in range(num_sessions):
                     sessions.append({
-                        'Session_Key': f"{course.code}-{section.code}-LAB-1",
+                        'Session_Key': f"{course.code}-{section.code}-T-{i+1}",
                         'Course_ID': course.id,
                         'Course_Code': course.code,
                         'Course_Name': course.name,
                         'Section_ID': section.id,
                         'Section_Code': section.code,
-                        'Teacher_ID': course.teacher_id if course.teacher_id else 0,
-                        'Instructor': course.teacher.name if course.teacher else 'TBD',
-                        'Duration_Minutes': 180,
-                        'Is_Lab': True,
-                        'Session_Number': 1
+                        'Teacher_ID': teacher.id,  # Use section-specific teacher
+                        'Instructor': teacher.name,  # Use section-specific teacher name
+                        'Duration_Minutes': duration,
+                        'Is_Lab': False,
+                        'Session_Number': i + 1
                     })
-                    lab_count += 1
-                else:
-                    # Theory: Multiple sessions based on credit hours
-                    credit_hours = int(course.credit_hours) if course.credit_hours else 3
-                    
-                    if credit_hours == 2:
-                        num_sessions = 1
-                        duration = 120
-                    elif credit_hours == 3:
-                        num_sessions = 2
-                        duration = 90
-                    else:
-                        num_sessions = credit_hours
-                        duration = 90
-
-                    for i in range(num_sessions):
-                        sessions.append({
-                            'Session_Key': f"{course.code}-{section.code}-T-{i+1}",
-                            'Course_ID': course.id,
-                            'Course_Code': course.code,
-                            'Course_Name': course.name,
-                            'Section_ID': section.id,
-                            'Section_Code': section.code,
-                            'Teacher_ID': course.teacher_id if course.teacher_id else 0,
-                            'Instructor': course.teacher.name if course.teacher else 'TBD',
-                            'Duration_Minutes': duration,
-                            'Is_Lab': False,
-                            'Session_Number': i + 1
-                        })
-                        theory_count += 1
+                    theory_count += 1
 
         print(f"[Optimizer] Prepared {len(sessions)} total sessions (Theory: {theory_count}, Lab: {lab_count})")
         return pd.DataFrame(sessions)
@@ -497,7 +511,9 @@ class TimetableOptimizer:
         """
 
         rooms = db.query(Room).filter(
-            Room.institution_id == institution_id
+            Room.institution_id == institution_id,
+            Room.is_deleted == False,  # Exclude deleted rooms
+            Room.is_available == True   # Exclude unavailable rooms
         ).all()
 
         rooms_data = []

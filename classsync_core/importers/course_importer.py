@@ -5,6 +5,7 @@ Course importer - creates Teacher, Course, and Section records from validated CS
 import pandas as pd
 from typing import Dict, Any
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from classsync_core.importers.base_importer import BaseImporter, ImportResult
 from classsync_core.models import Course, Teacher, Section, CourseType
@@ -31,37 +32,115 @@ class CourseImporter(BaseImporter):
         Returns:
             ImportResult with statistics
         """
+        print(f"[CourseImporter] Starting import from DataFrame with {len(df)} rows")
         df = self.normalize_dataframe(df)
+        print(f"[CourseImporter] Columns after normalization: {list(df.columns)}")
 
         # Validate required columns
         required = ['course_name', 'instructor', 'section', 'program', 'type', 'hours_per_week']
         missing = [col for col in required if col not in df.columns]
         if missing:
-            self.result.errors.append(f"Missing columns: {missing}")
+            error_msg = f"Missing columns: {missing}. Available: {list(df.columns)}"
+            print(f"[CourseImporter] ERROR: {error_msg}")
+            self.result.errors.append(error_msg)
             return self.result
 
         try:
+            # Step 0: Clear existing data for this institution (Single Source of Truth)
+            print("[CourseImporter] Step 0: Clearing existing data...")
+            self.clear_data()
+
             # Step 1: Import all unique teachers
+            print("[CourseImporter] Step 1: Importing teachers...")
             self._import_teachers(df)
 
             # Step 2: Import courses and sections
+            print("[CourseImporter] Step 2: Importing courses and sections...")
             self._import_courses_and_sections(df)
 
             # Commit if successful
             if self.result.success:
+                print(f"[CourseImporter] Import successful! Committing... (created: {self.result.created_count})")
                 self.commit()
+                print("[CourseImporter] Commit complete!")
             else:
+                print(f"[CourseImporter] Import had errors, rolling back: {self.result.errors}")
                 self.rollback()
 
         except Exception as e:
+            import traceback
+            error_msg = f"Import failed: {str(e)}"
+            print(f"[CourseImporter] EXCEPTION: {error_msg}")
+            print(f"[CourseImporter] Traceback: {traceback.format_exc()}")
             self.rollback()
-            self.result.errors.append(f"Import failed: {str(e)}")
+            self.result.errors.append(error_msg)
 
+        print(f"[CourseImporter] Final result: created={self.result.created_count}, errors={self.result.errors}")
         return self.result
+
+    def clear_data(self):
+        """Soft delete all existing courses, sections, and teachers for this institution.
+
+        This is called BEFORE importing new data to ensure the uploaded dataset
+        is the SINGLE SOURCE OF TRUTH for teachers, courses, and sections.
+
+        NOTE: Does NOT commit - the caller is responsible for committing after
+        all operations (clear + import) succeed to maintain atomicity.
+        """
+        now = datetime.utcnow()
+
+        # Count existing records before clearing (for logging)
+        existing_sections = self.db.query(Section).filter(
+            Section.institution_id == self.institution_id,
+            Section.is_deleted == False
+        ).count()
+        existing_courses = self.db.query(Course).filter(
+            Course.institution_id == self.institution_id,
+            Course.is_deleted == False
+        ).count()
+        existing_teachers = self.db.query(Teacher).filter(
+            Teacher.institution_id == self.institution_id,
+            Teacher.is_deleted == False
+        ).count()
+
+        print(f"[CourseImporter] Clearing existing data for institution {self.institution_id}:")
+        print(f"  - {existing_sections} sections to soft-delete")
+        print(f"  - {existing_courses} courses to soft-delete")
+        print(f"  - {existing_teachers} teachers to soft-delete")
+
+        # Soft delete sections FIRST (they reference courses)
+        sections_deleted = self.db.query(Section).filter(
+            Section.institution_id == self.institution_id,
+            Section.is_deleted == False
+        ).update({Section.is_deleted: True, Section.deleted_at: now}, synchronize_session='fetch')
+        print(f"[CourseImporter] Soft-deleted {sections_deleted} sections")
+
+        # Soft delete courses (they reference teachers)
+        courses_deleted = self.db.query(Course).filter(
+            Course.institution_id == self.institution_id,
+            Course.is_deleted == False
+        ).update({Course.is_deleted: True, Course.deleted_at: now}, synchronize_session='fetch')
+        print(f"[CourseImporter] Soft-deleted {courses_deleted} courses")
+
+        # Soft delete teachers LAST
+        teachers_deleted = self.db.query(Teacher).filter(
+            Teacher.institution_id == self.institution_id,
+            Teacher.is_deleted == False
+        ).update({Teacher.is_deleted: True, Teacher.deleted_at: now}, synchronize_session='fetch')
+        print(f"[CourseImporter] Soft-deleted {teachers_deleted} teachers")
+
+        # Flush to ensure the deletes are visible within this transaction
+        # but DON'T commit - let the full import complete first
+        self.db.flush()
+        print(f"[CourseImporter] Clear flushed. Old data marked as deleted (pending commit).")
 
     def _import_teachers(self, df: pd.DataFrame):
         """Import all unique teachers from the instructor column."""
         unique_teachers = df['instructor'].unique()
+        print(f"[CourseImporter] Found {len(unique_teachers)} unique instructors in dataset")
+
+        created_teachers = []
+        skipped_teachers = []
 
         for teacher_name in unique_teachers:
             teacher_name = str(teacher_name).strip()
@@ -69,7 +148,7 @@ class CourseImporter(BaseImporter):
             if not teacher_name or teacher_name.lower() in ['', 'tba', 'tbd', 'n/a']:
                 continue
 
-            # Check if teacher exists
+            # Check if teacher exists (Active only - should be NONE after clear_data)
             existing = self.db.query(Teacher).filter(
                 Teacher.name == teacher_name,
                 Teacher.institution_id == self.institution_id,
@@ -77,15 +156,24 @@ class CourseImporter(BaseImporter):
             ).first()
 
             if existing:
+                # This should NOT happen after clear_data!
                 self.teacher_cache[teacher_name] = existing.id
                 self.result.skipped_count += 1
+                skipped_teachers.append(f"{teacher_name} (id={existing.id})")
             else:
                 # Generate teacher code
                 name_parts = teacher_name.split()
-                code_base = ''.join([p[0].upper() for p in name_parts[:3]])
+                # Ensure we have at least 3 chars for base if possible
+                if len(name_parts) >= 3:
+                    code_base = ''.join([p[0].upper() for p in name_parts[:3]])
+                else:
+                    code_base = ''.join([p[0].upper() for p in name_parts])
+                    if len(code_base) < 3:
+                        code_base = (code_base + "XX")[:3]
+
                 teacher_code = f"{code_base}{abs(hash(teacher_name)) % 100:02d}"
 
-                # Create teacher
+                # Create NEW teacher from dataset
                 teacher = Teacher(
                     institution_id=self.institution_id,
                     code=teacher_code,
@@ -97,6 +185,14 @@ class CourseImporter(BaseImporter):
 
                 self.teacher_cache[teacher_name] = teacher.id
                 self.result.created_count += 1
+                created_teachers.append(f"{teacher_name} (id={teacher.id})")
+
+        print(f"[CourseImporter] Created {len(created_teachers)} new teachers from dataset")
+        if created_teachers[:5]:
+            print(f"  Examples: {', '.join(created_teachers[:5])}")
+        if skipped_teachers:
+            print(f"[CourseImporter] WARNING: Skipped {len(skipped_teachers)} teachers (already existed - this shouldn't happen!)")
+            print(f"  Skipped: {', '.join(skipped_teachers[:5])}")
 
     def _import_courses_and_sections(self, df: pd.DataFrame):
         """Import courses and their sections."""
@@ -141,9 +237,11 @@ class CourseImporter(BaseImporter):
         hours_per_week = int(row.get('hours_per_week', 3))
 
         # Generate course code from course name (not including section)
-        if 'course_code' in row and row['course_code']:
+        # PRIORITIZE DATASET VALUE
+        if 'course_code' in row and pd.notna(row['course_code']) and str(row['course_code']).strip():
             course_code = str(row['course_code']).strip()
         else:
+            # Only generate if absolutely necessary (shouldn't happen with valid dataset)
             code_parts = ''.join([word[0].upper() for word in course_name.split()[:3]])
             course_code = f"{code_parts}{abs(hash(course_name)) % 1000:03d}"
 
@@ -155,6 +253,8 @@ class CourseImporter(BaseImporter):
         course_type = CourseType.LAB if course_type_str == 'lab' else CourseType.LECTURE
 
         # Check if course exists (by name OR code, not section)
+        # Only check active courses (we just cleared old ones, so this should only return
+        # courses created in THIS session if cache missed for some reason)
         existing = self.db.query(Course).filter(
             Course.name == course_name,
             Course.institution_id == self.institution_id,
@@ -222,10 +322,15 @@ class CourseImporter(BaseImporter):
             self.result.skipped_count += 1
             return
 
+        # Get section-specific teacher
+        instructor_name = str(row['instructor']).strip()
+        teacher_id = self.teacher_cache.get(instructor_name)
+        
         # Create section
         section = Section(
             institution_id=self.institution_id,
             course_id=course_id,
+            teacher_id=teacher_id,
             code=section_code,
             name=program,
             semester="Fall",
