@@ -93,11 +93,15 @@ export function Settings() {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['constraints'] })
             setIsEditing(false)
-            // Update selected config with new data
-            if (selectedConfig?.id === data.data.id) {
+            // Force update selected config if it matches active, to ensure immediate UI reflect
+            if (activeConfig?.id === data.data.id) {
                 setSelectedConfig(data.data)
             }
         },
+        onError: (err) => {
+            console.error("Update failed:", err)
+            alert("Failed to update settings. Check console for details.")
+        }
     })
 
     const defaultConfig = configs.find(c => c.is_default)
@@ -133,6 +137,7 @@ export function Settings() {
 
     const handleUpdate = () => {
         if (!activeConfig) return
+        console.log("Updating config:", activeConfig.id, formData)
         updateMutation.mutate({
             id: activeConfig.id,
             data: {
