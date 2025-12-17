@@ -13,7 +13,10 @@ import {
     ChevronUp,
     Settings2,
     Lock,
-    Unlock
+    Unlock,
+    Clock,
+    Database,
+    Sliders
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -292,607 +295,467 @@ export function GenerateTimetable() {
     const hasDatasets = datasets && datasets.length > 0
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Page Header */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-primary/5 to-background/50 border border-primary/10 p-8 shadow-lg backdrop-blur-sm">
-                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                            <Sparkles className="h-8 w-8 text-primary" />
-                            Generate Timetable
-                        </h1>
-                        <p className="text-muted-foreground text-lg">
-                            Configure constraints and start the optimization engine
-                        </p>
-                    </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border/40 pb-6">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Generate Timetable</h1>
+                    <p className="text-muted-foreground mt-1 text-lg">
+                        Configure scheduling parameters and run the AI optimizer.
+                    </p>
                 </div>
-                {/* Decorative elements */}
-                <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-                <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-48 h-48 bg-primary/5 rounded-full blur-2xl" />
+                {!hasDatasets && (
+                    <Button variant="outline" onClick={() => navigate('/upload')}>
+                        Upload Data
+                    </Button>
+                )}
             </div>
 
-            {/* Dataset Status */}
-            <Card className={cn(
-                "border-2",
-                hasDatasets ? "border-green-500/30 bg-green-500/5" : "border-yellow-500/30 bg-yellow-500/5"
-            )}>
-                <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                        {hasDatasets ? (
-                            <CheckCircle className="h-8 w-8 text-green-500" />
-                        ) : (
-                            <AlertCircle className="h-8 w-8 text-yellow-500" />
-                        )}
-                        <div>
-                            <p className="font-semibold text-lg">
-                                {hasDatasets ? 'Datasets Ready' : 'No Datasets Uploaded'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {hasDatasets
-                                    ? `${datasets.length} dataset(s) available for scheduling`
-                                    : 'Please upload courses, teachers, and rooms data before generating'
-                                }
-                            </p>
-                        </div>
-                        {!hasDatasets && (
-                            <Button variant="outline" className="ml-auto" onClick={() => navigate('/upload')}>
-                                Upload Data
-                            </Button>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Constraint Profile Selection */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Settings2 className="h-5 w-5" />
-                        Constraint Profile
-                    </CardTitle>
-                    <CardDescription>
-                        Select a constraint configuration to use for generation
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {constraintConfigs?.map((config: ConstraintConfig) => (
-                            <div
-                                key={config.id}
-                                className={cn(
-                                    "cursor-pointer rounded-xl border-2 p-4 transition-all hover:shadow-md",
-                                    selectedConfigId === config.id || (!selectedConfigId && config.is_default)
-                                        ? "border-primary bg-primary/5 shadow-sm"
-                                        : "border-border/50 hover:border-primary/50"
-                                )}
-                                onClick={() => setSelectedConfigId(config.id)}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="font-semibold">{config.name}</p>
-                                    {config.is_default && (
-                                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                                            Default
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="text-sm text-muted-foreground space-y-1">
-                                    <p>{config.days_per_week} days/week</p>
-                                    <p>{config.start_time} - {config.end_time}</p>
-                                    <p>{config.timeslot_duration_minutes} min slots</p>
-                                </div>
+            {/* Top Grid: Profile & Status */}
+            <div className="grid gap-6 md:grid-cols-12">
+                {/* Constraint Profile Selection */}
+                <div className="md:col-span-8">
+                    <Card className="h-full border-border/60 shadow-sm">
+                        <CardHeader className="pb-3 border-b border-border/40 bg-muted/5">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <Sliders className="h-4 w-4 text-muted-foreground" />
+                                    Constraint Profile
+                                </CardTitle>
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/settings')}>
+                                    Manage Profiles
+                                </Button>
                             </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Teacher Constraints */}
-            <Card>
-                <CardHeader
-                    className="cursor-pointer"
-                    onClick={() => setExpandedSections(s => ({ ...s, constraints: !s.constraints }))}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <User className="h-5 w-5" />
-                                Teacher Constraints
-                                {teacherConstraints.length > 0 && (
-                                    <span className="ml-2 text-sm bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                                        {teacherConstraints.length}
-                                    </span>
-                                )}
-                            </CardTitle>
-                            <CardDescription>
-                                Define availability, blocked slots, and preferences for teachers
-                            </CardDescription>
-                        </div>
-                        {expandedSections.constraints ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                        )}
-                    </div>
-                </CardHeader>
-                {expandedSections.constraints && (
-                    <CardContent className="space-y-4">
-                        {/* Existing Constraints List */}
-                        {teacherConstraints.length > 0 && (
-                            <div className="space-y-2">
-                                {teacherConstraints.map((constraint, index) => (
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {constraintConfigs?.map((config: ConstraintConfig) => (
                                     <div
-                                        key={index}
+                                        key={config.id}
                                         className={cn(
-                                            "flex items-center justify-between p-4 rounded-lg border",
-                                            constraint.is_hard
-                                                ? "border-red-500/30 bg-red-500/5"
-                                                : "border-yellow-500/30 bg-yellow-500/5"
+                                            "cursor-pointer rounded-lg border p-3 transition-all hover:bg-muted/50 flex flex-col justify-between gap-2",
+                                            selectedConfigId === config.id || (!selectedConfigId && config.is_default)
+                                                ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                                                : "border-border/60"
                                         )}
+                                        onClick={() => setSelectedConfigId(config.id)}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            {constraint.is_hard ? (
-                                                <Lock className="h-5 w-5 text-red-500" />
-                                            ) : (
-                                                <Unlock className="h-5 w-5 text-yellow-500" />
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm">{config.name}</span>
+                                            {config.is_default && (
+                                                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full uppercase font-bold tracking-wider">
+                                                    Default
+                                                </span>
                                             )}
-                                            <div>
-                                                <p className="font-medium">
-                                                    {getTeacherName(constraint.teacher_id)}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {CONSTRAINT_TYPES.find(t => t.value === constraint.constraint_type)?.label}
-                                                    {constraint.day && ` - ${constraint.day}`}
-                                                    {constraint.days && ` - ${constraint.days.join(', ')}`}
-                                                    {constraint.start_time && ` (${constraint.start_time} - ${constraint.end_time})`}
-                                                </p>
-                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={cn(
-                                                "text-xs px-2 py-0.5 rounded-full",
-                                                constraint.is_hard
-                                                    ? "bg-red-500/20 text-red-500"
-                                                    : "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
-                                            )}>
-                                                {constraint.is_hard ? 'Hard' : `Soft (w:${constraint.weight})`}
+                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="h-3 w-3" /> {config.start_time}-{config.end_time}
                                             </span>
+                                            <span>{config.days_per_week} Days</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Dataset Status */}
+                <div className="md:col-span-4">
+                    <Card className={cn(
+                        "h-full border-2 shadow-sm flex flex-col justify-center",
+                        hasDatasets ? "border-green-500/20 bg-green-50/50 dark:bg-green-900/10" : "border-amber-500/20 bg-amber-50/50 dark:bg-amber-900/10"
+                    )}>
+                        <CardContent className="flex flex-col items-center text-center p-6 gap-3">
+                            <div className={cn(
+                                "p-3 rounded-full",
+                                hasDatasets ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+                            )}>
+                                {hasDatasets ? <Database className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
+                            </div>
+                            <div>
+                                <p className="font-semibold text-base">
+                                    {hasDatasets ? 'Data Ready' : 'Data Missing'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1 max-w-[200px] mx-auto">
+                                    {hasDatasets 
+                                        ? `${datasets.length} active datasets available for processing.`
+                                        : 'Upload course and room data to begin.'}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Main Configuration Area */}
+            <div className="grid gap-6 md:grid-cols-12 items-start">
+                
+                {/* Left: Teacher Constraints (Main Focus) */}
+                <div className="md:col-span-8 space-y-6">
+                    <Card className="border-border/60 shadow-sm overflow-hidden">
+                        <CardHeader className="py-4 px-6 border-b bg-muted/5 flex flex-row items-center justify-between">
+                            <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                Teacher Constraints
+                            </CardTitle>
+                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                                {teacherConstraints.length} active
+                            </span>
+                        </CardHeader>
+                        
+                        <CardContent className="p-6 space-y-6">
+                            {/* Constraints List */}
+                            {teacherConstraints.length > 0 ? (
+                                <div className="space-y-3">
+                                    {teacherConstraints.map((constraint, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-md",
+                                                    constraint.is_hard ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-600"
+                                                )}>
+                                                    {constraint.is_hard ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm text-foreground">
+                                                        {getTeacherName(constraint.teacher_id)}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                        <span className="font-semibold text-primary/80">
+                                                            {CONSTRAINT_TYPES.find(t => t.value === constraint.constraint_type)?.label}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {constraint.day || (constraint.days ? constraint.days.join(', ') : 'All Days')} 
+                                                            {constraint.start_time ? ` (${constraint.start_time}-${constraint.end_time})` : ''}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            </div>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                                 onClick={() => handleRemoveConstraint(index)}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Add Constraint Form */}
-                        {showAddConstraint ? (
-                            <div className="p-4 rounded-lg border border-dashed border-primary/50 bg-primary/5 space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {/* Teacher Select */}
-                                    <div>
-                                        <label className="text-sm font-medium mb-1.5 block">Teacher</label>
-                                        <select
-                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                            value={newConstraint.teacher_id}
-                                            onChange={(e) => setNewConstraint({
-                                                ...newConstraint,
-                                                teacher_id: parseInt(e.target.value)
-                                            })}
-                                        >
-                                            <option value={0}>Select teacher...</option>
-                                            {teachers?.map((teacher: Teacher) => (
-                                                <option key={teacher.id} value={teacher.id}>
-                                                    {teacher.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Constraint Type */}
-                                    <div>
-                                        <label className="text-sm font-medium mb-1.5 block">Type</label>
-                                        <select
-                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                            value={newConstraint.constraint_type}
-                                            onChange={(e) => setNewConstraint({
-                                                ...newConstraint,
-                                                constraint_type: e.target.value as ConstraintType
-                                            })}
-                                        >
-                                            {CONSTRAINT_TYPES.map((type) => (
-                                                <option key={type.value} value={type.value}>
-                                                    {type.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Day */}
-                                    <div>
-                                        <label className="text-sm font-medium mb-1.5 block">Day</label>
-                                        <select
-                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                            value={newConstraint.day}
-                                            onChange={(e) => setNewConstraint({
-                                                ...newConstraint,
-                                                day: e.target.value
-                                            })}
-                                        >
-                                            {DAYS.map((day) => (
-                                                <option key={day} value={day}>{day}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Hard/Soft Toggle */}
-                                    <div>
-                                        <label className="text-sm font-medium mb-1.5 block">Enforcement</label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    "flex-1 h-10 px-3 rounded-md border text-sm font-medium transition-colors",
-                                                    newConstraint.is_hard
-                                                        ? "border-red-500 bg-red-500/10 text-red-500"
-                                                        : "border-input hover:bg-muted"
-                                                )}
-                                                onClick={() => setNewConstraint({ ...newConstraint, is_hard: true })}
-                                            >
-                                                Hard
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    "flex-1 h-10 px-3 rounded-md border text-sm font-medium transition-colors",
-                                                    !newConstraint.is_hard
-                                                        ? "border-yellow-500 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                                                        : "border-input hover:bg-muted"
-                                                )}
-                                                onClick={() => setNewConstraint({ ...newConstraint, is_hard: false })}
-                                            >
-                                                Soft
-                                            </button>
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
-
-                                {/* Time Selection (for blocked_slot, available_window, preferred_slot) */}
-                                {['blocked_slot', 'available_window', 'preferred_slot'].includes(newConstraint.constraint_type!) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="text-sm font-medium mb-1.5 block">Start Time</label>
-                                            <select
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                                value={newConstraint.start_time}
-                                                onChange={(e) => setNewConstraint({
-                                                    ...newConstraint,
-                                                    start_time: e.target.value
-                                                })}
-                                            >
-                                                {TIME_SLOTS.map((time) => (
-                                                    <option key={time} value={time}>{time}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium mb-1.5 block">End Time</label>
-                                            <select
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                                value={newConstraint.end_time}
-                                                onChange={(e) => setNewConstraint({
-                                                    ...newConstraint,
-                                                    end_time: e.target.value
-                                                })}
-                                            >
-                                                {TIME_SLOTS.map((time) => (
-                                                    <option key={time} value={time}>{time}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        {/* Weight (for soft constraints) */}
-                                        {!newConstraint.is_hard && (
-                                            <div>
-                                                <label className="text-sm font-medium mb-1.5 block">
-                                                    Weight ({newConstraint.weight})
-                                                </label>
-                                                <Input
-                                                    type="range"
-                                                    min={1}
-                                                    max={10}
-                                                    value={newConstraint.weight}
-                                                    onChange={(e) => setNewConstraint({
-                                                        ...newConstraint,
-                                                        weight: parseInt(e.target.value)
-                                                    })}
-                                                    className="h-10"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Action Buttons */}
-                                <div className="flex justify-end gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setShowAddConstraint(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        onClick={handleAddConstraint}
-                                        disabled={!newConstraint.teacher_id}
-                                    >
-                                        Add Constraint
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                className="w-full border-dashed"
-                                onClick={() => setShowAddConstraint(true)}
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Teacher Constraint
-                            </Button>
-                        )}
-                    </CardContent>
-                )}
-            </Card>
-
-            {/* Optimization Settings */}
-            <Card>
-                <CardHeader
-                    className="cursor-pointer"
-                    onClick={() => setExpandedSections(s => ({ ...s, settings: !s.settings }))}
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <Settings2 className="h-5 w-5" />
-                                Optimization Settings
-                            </CardTitle>
-                            <CardDescription>
-                                Fine-tune the genetic algorithm parameters
-                            </CardDescription>
-                        </div>
-                        {expandedSections.settings ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                        )}
-                    </div>
-                </CardHeader>
-                {expandedSections.settings && (
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Population Size: {settings.population_size}
-                                </label>
-                                <Input
-                                    type="range"
-                                    min={10}
-                                    max={100}
-                                    value={settings.population_size}
-                                    onChange={(e) => setSettings({
-                                        ...settings,
-                                        population_size: parseInt(e.target.value)
-                                    })}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Larger = better results, slower generation
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Generations: {settings.generations}
-                                </label>
-                                <Input
-                                    type="range"
-                                    min={50}
-                                    max={300}
-                                    value={settings.generations}
-                                    onChange={(e) => setSettings({
-                                        ...settings,
-                                        generations: parseInt(e.target.value)
-                                    })}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    More iterations for better optimization
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Target Fitness: {settings.target_fitness}%
-                                </label>
-                                <Input
-                                    type="range"
-                                    min={50}
-                                    max={100}
-                                    value={settings.target_fitness}
-                                    onChange={(e) => setSettings({
-                                        ...settings,
-                                        target_fitness: parseInt(e.target.value)
-                                    })}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Stop early when this score is reached
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Random Seed (Optional)
-                                </label>
-                                <Input
-                                    type="number"
-                                    placeholder="e.g. 42"
-                                    value={settings.random_seed || ''}
-                                    onChange={(e) => setSettings({
-                                        ...settings,
-                                        random_seed: e.target.value ? parseInt(e.target.value) : undefined
-                                    })}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Use same seed for reproducible results
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                )}
-            </Card>
-
-            {/* Validation Warnings Panel */}
-            {validationErrors.length > 0 && (
-                <Card className={cn(
-                    "border-2",
-                    hasErrors ? "border-destructive/50 bg-destructive/5" : "border-yellow-500/30 bg-yellow-500/5"
-                )}>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <AlertCircle className={cn(
-                                "h-5 w-5",
-                                hasErrors ? "text-destructive" : "text-yellow-500"
-                            )} />
-                            {hasErrors ? 'Configuration Errors' : 'Configuration Warnings'}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ul className="space-y-2">
-                            {validationErrors.map((error, index) => (
-                                <li key={index} className="flex items-start gap-2 text-sm">
-                                    <span className={cn(
-                                        "shrink-0 mt-0.5 h-4 w-4 rounded-full flex items-center justify-center text-xs font-bold",
-                                        error.type === 'error'
-                                            ? "bg-destructive text-destructive-foreground"
-                                            : "bg-yellow-500 text-white"
-                                    )}>
-                                        {error.type === 'error' ? '!' : '?'}
-                                    </span>
-                                    <div>
-                                        <p className="font-medium">{error.message}</p>
-                                        {error.details && (
-                                            <p className="text-muted-foreground text-xs">{error.details}</p>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        {hasErrors && (
-                            <p className="mt-4 text-sm text-destructive font-medium">
-                                Please fix the errors above before generating.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Generation Summary & Button */}
-            <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-background">
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div>
-                            <h3 className="font-semibold text-lg mb-2">Ready to Generate</h3>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                                <p>Profile: {selectedConfig?.name || defaultConfig?.name || 'Default'}</p>
-                                <p>Teacher Constraints: {teacherConstraints.length} ({teacherConstraints.filter(c => c.is_hard).length} hard)</p>
-                                <p>Settings: {settings.population_size} pop, {settings.generations} gen</p>
-                                {hasWarnings && !hasErrors && (
-                                    <p className="text-yellow-600 dark:text-yellow-400">
-                                        ⚠ {validationErrors.length} warning(s) - review recommended
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <Button
-                            size="lg"
-                            className="shadow-lg hover:shadow-xl transition-all min-w-[200px]"
-                            disabled={!hasDatasets || generateMutation.isPending || hasErrors}
-                            onClick={() => generateMutation.mutate()}
-                        >
-                            {generateMutation.isPending ? (
-                                <>
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                    Generating...
-                                </>
                             ) : (
-                                <>
-                                    <Sparkles className="mr-2 h-5 w-5" />
-                                    Generate Timetable
-                                </>
-                            )}
-                        </Button>
-                    </div>
-
-                    {/* Generation Progress */}
-                    {generateMutation.isPending && (
-                        <div className="mt-6 p-4 rounded-lg border border-primary/30 bg-primary/5">
-                            <div className="flex items-center gap-4">
-                                <div className="relative">
-                                    <div className="h-12 w-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+                                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl bg-muted/5">
+                                    <p className="text-sm">No custom constraints added</p>
+                                    <p className="text-xs mt-1 opacity-70">Teachers will be scheduled based on standard rules</p>
                                 </div>
+                            )}
+
+                            {/* Add Constraint Form */}
+                            {showAddConstraint ? (
+                                <div className="bg-muted/30 p-4 rounded-xl border border-border/60 animate-in fade-in zoom-in-95 duration-200">
+                                    <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                                        <Plus className="h-4 w-4" /> New Constraint
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Teacher</label>
+                                            <select
+                                                className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary"
+                                                value={newConstraint.teacher_id}
+                                                onChange={(e) => setNewConstraint({
+                                                    ...newConstraint,
+                                                    teacher_id: parseInt(e.target.value)
+                                                })}
+                                            >
+                                                <option value={0}>Select teacher...</option>
+                                                {teachers?.map((teacher: Teacher) => (
+                                                    <option key={teacher.id} value={teacher.id}>
+                                                        {teacher.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Type</label>
+                                            <select
+                                                className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary"
+                                                value={newConstraint.constraint_type}
+                                                onChange={(e) => setNewConstraint({
+                                                    ...newConstraint,
+                                                    constraint_type: e.target.value as ConstraintType
+                                                })}
+                                            >
+                                                {CONSTRAINT_TYPES.map((type) => (
+                                                    <option key={type.value} value={type.value}>
+                                                        {type.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Day</label>
+                                            <select
+                                                className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary"
+                                                value={newConstraint.day}
+                                                onChange={(e) => setNewConstraint({
+                                                    ...newConstraint,
+                                                    day: e.target.value
+                                                })}
+                                            >
+                                                {DAYS.map((day) => (
+                                                    <option key={day} value={day}>{day}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                                            <div className="flex bg-background rounded-md border p-1 h-9">
+                                                <button
+                                                    type="button"
+                                                    className={cn(
+                                                        "flex-1 text-xs font-medium rounded transition-all",
+                                                        newConstraint.is_hard
+                                                            ? "bg-red-100 text-red-700 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-muted"
+                                                    )}
+                                                    onClick={() => setNewConstraint({ ...newConstraint, is_hard: true })}
+                                                >
+                                                    Hard
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={cn(
+                                                        "flex-1 text-xs font-medium rounded transition-all",
+                                                        !newConstraint.is_hard
+                                                            ? "bg-yellow-100 text-yellow-700 shadow-sm"
+                                                            : "text-muted-foreground hover:bg-muted"
+                                                    )}
+                                                    onClick={() => setNewConstraint({ ...newConstraint, is_hard: false })}
+                                                >
+                                                    Soft
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Time Slots (Conditional) */}
+                                    {['blocked_slot', 'available_window', 'preferred_slot'].includes(newConstraint.constraint_type!) && (
+                                        <div className="grid grid-cols-2 gap-4 mb-4 pt-4 border-t border-dashed border-border/60">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Start Time</label>
+                                                <select
+                                                    className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                                                    value={newConstraint.start_time}
+                                                    onChange={(e) => setNewConstraint({ ...newConstraint, start_time: e.target.value })}
+                                                >
+                                                    {TIME_SLOTS.map((time) => (
+                                                        <option key={time} value={time}>{time}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">End Time</label>
+                                                <select
+                                                    className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                                                    value={newConstraint.end_time}
+                                                    onChange={(e) => setNewConstraint({ ...newConstraint, end_time: e.target.value })}
+                                                >
+                                                    {TIME_SLOTS.map((time) => (
+                                                        <option key={time} value={time}>{time}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={() => setShowAddConstraint(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button size="sm" onClick={handleAddConstraint} disabled={!newConstraint.teacher_id}>
+                                            Add
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    className="w-full border-dashed text-muted-foreground hover:text-primary hover:border-primary/50"
+                                    onClick={() => setShowAddConstraint(true)}
+                                >
+                                    <Plus className="h-4 w-4 mr-2" /> Add Constraint
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Right: Optimization Settings (Collapsible/Compact) */}
+                <div className="md:col-span-4 space-y-6">
+                    <Card className="border-border/60 shadow-sm">
+                        <CardHeader 
+                            className="py-4 px-6 border-b bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                            onClick={() => setExpandedSections(s => ({ ...s, settings: !s.settings }))}
+                        >
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                                    Optimizer Settings
+                                </CardTitle>
+                                {expandedSections.settings ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        {expandedSections.settings && (
+                            <CardContent className="p-6 space-y-5 animate-in slide-in-from-top-2 duration-200">
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <label className="text-sm font-medium">Population Size</label>
+                                        <span className="text-xs font-mono bg-muted px-1.5 rounded">{settings.population_size}</span>
+                                    </div>
+                                    <Input
+                                        type="range"
+                                        min={10}
+                                        max={100}
+                                        className="h-2"
+                                        value={settings.population_size}
+                                        onChange={(e) => setSettings({ ...settings, population_size: parseInt(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <label className="text-sm font-medium">Generations</label>
+                                        <span className="text-xs font-mono bg-muted px-1.5 rounded">{settings.generations}</span>
+                                    </div>
+                                    <Input
+                                        type="range"
+                                        min={50}
+                                        max={300}
+                                        className="h-2"
+                                        value={settings.generations}
+                                        onChange={(e) => setSettings({ ...settings, generations: parseInt(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <label className="text-sm font-medium">Target Fitness</label>
+                                        <span className="text-xs font-mono bg-muted px-1.5 rounded">{settings.target_fitness}%</span>
+                                    </div>
+                                    <Input
+                                        type="range"
+                                        min={50}
+                                        max={100}
+                                        className="h-2"
+                                        value={settings.target_fitness}
+                                        onChange={(e) => setSettings({ ...settings, target_fitness: parseInt(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="pt-2 border-t border-border/40">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Random Seed</label>
+                                    <Input
+                                        type="number"
+                                        placeholder="e.g. 42 (Optional)"
+                                        className="h-8 text-xs"
+                                        value={settings.random_seed || ''}
+                                        onChange={(e) => setSettings({ ...settings, random_seed: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    />
+                                </div>
+                            </CardContent>
+                        )}
+                        {!expandedSections.settings && (
+                            <div className="px-6 py-3 bg-muted/5 text-xs text-muted-foreground flex justify-between">
+                                <span>{settings.generations} gens</span>
+                                <span>Pop: {settings.population_size}</span>
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Validation Summary (Compact) */}
+                    {validationErrors.length > 0 && (
+                        <Card className={cn(
+                            "border-l-4 shadow-sm",
+                            hasErrors ? "border-l-destructive" : "border-l-yellow-500"
+                        )}>
+                            <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                    {hasErrors ? <AlertCircle className="h-5 w-5 text-destructive shrink-0" /> : <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0" />}
+                                    <div>
+                                        <p className="font-semibold text-sm mb-1">
+                                            {hasErrors ? 'Configuration Errors' : 'Warnings Detected'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {validationErrors.length} issue(s) found. 
+                                            {hasErrors && " Generation is blocked."}
+                                        </p>
+                                        <ul className="mt-2 space-y-1">
+                                            {validationErrors.slice(0, 3).map((err, i) => (
+                                                <li key={i} className="text-xs truncate max-w-[250px] list-disc ml-4">
+                                                    {err.message}
+                                                </li>
+                                            ))}
+                                            {validationErrors.length > 3 && <li className="text-xs text-muted-foreground">+ {validationErrors.length - 3} more</li>}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
+
+            {/* Sticky Bottom Action Bar */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+                <div className="bg-background/80 backdrop-blur-md border border-border/60 shadow-2xl rounded-2xl p-2 flex items-center gap-2 pl-4">
+                    <div className="flex-1 min-w-0">
+                        {generateMutation.isPending ? (
+                            <div className="flex items-center gap-3">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
                                 <div>
-                                    <p className="font-semibold">Optimizing Schedule...</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Our AI is finding the best slots. This may take 1-3 minutes.
+                                    <p className="text-sm font-semibold">Optimizing Schedule...</p>
+                                    <p className="text-xs text-muted-foreground truncate">AI is calculating optimal slots</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <Sparkles className="h-5 w-5 text-primary" />
+                                <div>
+                                    <p className="text-sm font-semibold">Ready to Generate</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                        {selectedConfig?.name || 'Default Profile'} • {teacherConstraints.length} Constraints
                                     </p>
                                 </div>
                             </div>
+                        )}
+                    </div>
+                    <Button
+                        size="lg"
+                        className="rounded-xl shadow-lg hover:shadow-xl transition-all h-12 px-8"
+                        disabled={!hasDatasets || generateMutation.isPending || hasErrors}
+                        onClick={() => generateMutation.mutate()}
+                    >
+                        {generateMutation.isPending ? 'Processing' : 'Generate Timetable'}
+                    </Button>
+                </div>
+            </div>
+            
+            {/* Error Toast/Overlay */}
+            {generateMutation.isError && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 animate-in slide-in-from-bottom-4">
+                    <div className="bg-destructive/95 text-destructive-foreground backdrop-blur-md shadow-lg rounded-xl p-4 flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                            <p className="font-semibold">Generation Failed</p>
+                            <p className="opacity-90 mt-1">
+                                {((generateMutation.error as any)?.response?.data?.detail?.message) || 'An unexpected error occurred.'}
+                            </p>
                         </div>
-                    )}
-
-                    {/* Error Display */}
-                    {generateMutation.isError && (
-                        <div className="mt-6 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
-                            <div className="flex items-center gap-3 text-destructive">
-                                <AlertCircle className="h-5 w-5" />
-                                <div className="w-full">
-                                    <p className="font-semibold">Generation Failed</p>
-                                    <div className="text-sm mt-1">
-                                        {(() => {
-                                            const errorData = (generateMutation.error as any)?.response?.data;
-                                            const detail = errorData?.detail;
-                                            
-                                            if (typeof detail === 'string') {
-                                                return detail;
-                                            }
-                                            
-                                            if (detail && typeof detail === 'object') {
-                                                if (detail.message) {
-                                                     return (
-                                                        <div>
-                                                            <p>{detail.message}</p>
-                                                            {detail.validation_errors && (
-                                                                <ul className="list-disc pl-5 mt-2 space-y-1 text-xs opacity-90">
-                                                                    {detail.validation_errors.errors?.map((err: any, i: number) => (
-                                                                        <li key={i}>
-                                                                            <span className="font-medium">{err.error_type}:</span> {err.message}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </div>
-                                                     );
-                                                }
-                                                return JSON.stringify(detail);
-                                            }
-                                            
-                                            return 'An unexpected error occurred';
-                                        })()}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
