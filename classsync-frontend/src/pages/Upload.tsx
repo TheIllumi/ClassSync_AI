@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileUpload } from '@/components/upload/FileUpload'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { datasetsApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
-import { Trash2, CheckCircle, XCircle, LibraryBig, School, Database, FileSpreadsheet } from 'lucide-react'
+import { Trash2, CheckCircle, XCircle, LibraryBig, School, Database, FileSpreadsheet, Download, Info } from 'lucide-react'
 
 export function Upload() {
     const queryClient = useQueryClient()
@@ -54,24 +54,19 @@ export function Upload() {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-background border border-indigo-500/10 p-8 shadow-sm">
-                <div className="relative z-10 flex items-center gap-6">
-                    <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 shadow-sm ring-1 ring-indigo-500/20">
-                        <Database className="h-8 w-8" />
-                    </div>
-                    <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                            Dataset Management
-                        </h1>
-                        <p className="text-muted-foreground text-lg max-w-2xl">
-                            Upload and manage your institutional data. Ensure your CSV files follow the required format for optimal scheduling.
-                        </p>
-                    </div>
+        <div className="flex flex-col h-[calc(100vh-2rem)] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-2">
+            {/* Header */}
+            <div className="flex items-center justify-between shrink-0">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Upload your institutional data for scheduling.
+                    </p>
                 </div>
-                {/* Decorative background element */}
-                <div className="absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-indigo-500/5 blur-3xl" />
+                <Button variant="outline" size="sm" className="hidden sm:flex">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Templates
+                </Button>
             </div>
 
             {/* Upload Status Toast */}
@@ -90,55 +85,123 @@ export function Upload() {
                 </div>
             )}
 
-            {/* Main Content Area */}
-            <div className="space-y-10">
-                {/* File Upload Component */}
-                <section>
-                    <FileUpload
-                        onUpload={handleUpload}
-                        isUploading={uploadMutation.isPending}
-                    />
-                </section>
-
-                {/* Uploaded Datasets List */}
-                <section>
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 className="text-2xl font-semibold tracking-tight">Uploaded Files</h2>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Manage your active datasets for timetable generation
-                            </p>
-                        </div>
-                        <div className="bg-muted px-3 py-1 rounded-full text-xs font-medium text-muted-foreground">
-                            {datasets?.length || 0} files total
-                        </div>
+            {/* Main Content Grid */}
+            <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-6">
+                
+                {/* Top Row: Upload & Guidelines (Equal Height) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[420px]">
+                    {/* Left: Upload Component */}
+                    <div className="lg:col-span-7 h-full">
+                        <FileUpload
+                            onUpload={handleUpload}
+                            isUploading={uploadMutation.isPending}
+                            className="h-full shadow-sm"
+                        />
                     </div>
 
-                    <Card className="overflow-hidden border-none shadow-sm bg-card/50">
-                        <CardContent className="p-0">
+                    {/* Right: Guidelines */}
+                    <Card className="lg:col-span-5 h-full shadow-sm flex flex-col bg-muted/10 border-muted-foreground/20">
+                        <CardHeader className="pb-2 border-b bg-background/50">
+                            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                                <Info className="h-5 w-5 text-primary" />
+                                Dataset Requirements
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                        <LibraryBig className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="font-semibold">Courses Format</h3>
+                                </div>
+                                <div className="pl-2 border-l-2 border-blue-200 dark:border-blue-800 space-y-3">
+                                    <div className="text-sm">
+                                        <p className="font-medium mb-1">Required Columns:</p>
+                                        <code className="bg-background px-2 py-1 rounded border text-xs block w-full overflow-x-auto text-muted-foreground">
+                                            course_name, instructor, section, program, type, hours_per_week
+                                        </code>
+                                    </div>
+                                    <ul className="space-y-2 text-sm text-muted-foreground">
+                                        <li className="flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                                            <span>Type must be "Lab" or "Theory"</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                                            <span>Multiple sections need separate rows</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                                        <School className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="font-semibold">Rooms Format</h3>
+                                </div>
+                                <div className="pl-2 border-l-2 border-orange-200 dark:border-orange-800 space-y-3">
+                                    <div className="text-sm">
+                                        <p className="font-medium mb-1">Required Columns:</p>
+                                        <code className="bg-background px-2 py-1 rounded border text-xs block w-full overflow-x-auto text-muted-foreground">
+                                            room_name, type, capacity
+                                        </code>
+                                    </div>
+                                    <ul className="space-y-2 text-sm text-muted-foreground">
+                                        <li className="flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                                            <span>Type must be "Lab" or "Theory"</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                                            <span>Capacity defaults to 50 if missing</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Bottom Row: Uploaded Files List */}
+                <div className="flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-3 shrink-0">
+                        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                            <Database className="h-5 w-5 text-muted-foreground" />
+                            Active Datasets
+                        </h2>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                            {datasets?.length || 0} files
+                        </span>
+                    </div>
+
+                    <Card className="flex-1 overflow-hidden border-border/60 shadow-sm bg-card/50 min-h-0 flex flex-col">
+                        <CardContent className="p-0 flex-1 overflow-y-auto">
                             {datasets && datasets.length > 0 ? (
                                 <div className="divide-y divide-border/50">
                                     {datasets.map((dataset: any) => (
                                         <div
                                             key={dataset.id}
-                                            className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 hover:bg-muted/30 transition-all duration-200"
+                                            className="group flex items-center justify-between p-4 hover:bg-muted/30 transition-all duration-200"
                                         >
-                                            <div className="flex items-start gap-4 mb-4 sm:mb-0">
-                                                <div className={`p-3 rounded-xl ${
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-2.5 rounded-xl shrink-0 ${
                                                     dataset.dataset_type === 'courses' 
                                                         ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
                                                         : 'bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'
                                                 }`}>
                                                     {dataset.dataset_type === 'courses' ? (
-                                                        <LibraryBig className="h-6 w-6" />
+                                                        <LibraryBig className="h-5 w-5" />
                                                     ) : (
-                                                        <School className="h-6 w-6" />
+                                                        <School className="h-5 w-5" />
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <h3 className="font-semibold text-base">{dataset.file_name}</h3>
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <h3 className="font-semibold text-sm truncate">{dataset.file_name}</h3>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                                             dataset.validation_status === 'valid'
                                                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                                 : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -146,31 +209,27 @@ export function Upload() {
                                                             {dataset.validation_status}
                                                         </span>
                                                     </div>
-                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                        <span className="flex items-center gap-1">
+                                                            <FileSpreadsheet className="h-3 w-3" />
                                                             {dataset.row_count} rows
                                                         </span>
                                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                                                        <span>Uploaded {formatDateTime(dataset.created_at)}</span>
+                                                        <span>{formatDateTime(dataset.created_at)}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                <Button variant="outline" size="sm" className="hidden sm:flex">
-                                                    View Data
-                                                </Button>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                     onClick={() => {
-                                                        if (confirm('Are you sure you want to delete this dataset? This action cannot be undone.')) {
+                                                        if (confirm('Delete dataset?')) {
                                                             deleteMutation.mutate(dataset.id)
                                                         }
                                                     }}
-                                                    disabled={deleteMutation.isPending}
-                                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -179,19 +238,19 @@ export function Upload() {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-16 text-center">
-                                    <div className="bg-muted/30 p-6 rounded-full mb-4">
-                                        <Database className="h-10 w-10 text-muted-foreground/50" />
+                                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                                    <div className="bg-muted/30 p-4 rounded-full mb-3">
+                                        <Database className="h-8 w-8 text-muted-foreground/50" />
                                     </div>
-                                    <h3 className="font-semibold text-lg">No datasets uploaded</h3>
-                                    <p className="text-muted-foreground text-sm max-w-sm mt-2">
-                                        Upload your Course and Room data above to get started with timetable generation.
+                                    <h3 className="font-medium text-base">No datasets</h3>
+                                    <p className="text-muted-foreground text-xs mt-1">
+                                        Upload files to see them here
                                     </p>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
-                </section>
+                </div>
             </div>
         </div>
     )
