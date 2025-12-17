@@ -43,7 +43,17 @@ export function Upload() {
 
     const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false)
 
-    // ... existing hooks ...
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: (id: number) => datasetsApi.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['datasets'] })
+        },
+    })
+
+    const handleUpload = (file: File, type: string) => {
+        uploadMutation.mutate({ file, type })
+    }
 
     const downloadTemplate = (type: 'courses' | 'rooms') => {
         let content = ''
