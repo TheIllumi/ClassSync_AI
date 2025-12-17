@@ -120,6 +120,24 @@ async def upload_dataset(
             import_result = _import_dataset_to_db(
                 temp_file_path, dataset_type, db
             )
+            
+            # Check if import actually succeeded
+            if not import_result.success:
+                db.rollback() # Ensure rollback of data import
+                
+                # Mark dataset as invalid since import failed
+                dataset.status = "invalid"
+                dataset.validation_errors = {"import_errors": import_result.errors}
+                db.commit()
+                
+                raise HTTPException(
+                    status_code=422, 
+                    detail={
+                        "message": "Dataset validation passed but import failed",
+                        "errors": import_result.errors,
+                        "created": import_result.created_count
+                    }
+                )
 
         return DatasetUploadWithImportResponse(
             id=dataset.id,
@@ -250,6 +268,32 @@ async def delete_dataset(
     if not s3_success:
         # Log warning but continue with database deletion
         pass
+
+    # Clear derived data (Single Source of Truth enforcement)
+    # Infer type from S3 key: uploads/{id}/{type}/{timestamp}_{filename}
+    dataset_type = 'unknown'
+    try:
+        parts = dataset.s3_key.split('/')
+        if len(parts) >= 3:
+            dataset_type = parts[2]
+    except Exception:
+        pass
+
+    try:
+        # If it's a course dataset (or unknown/legacy), clear course data
+        if dataset_type in ['courses', 'unknown', 'sections', 'teachers']:
+            course_importer = CourseImporter(db, institution_id=1)
+            course_importer.clear_data()
+            print(f"Cleared course/teacher/section data for deleted dataset: {dataset.filename}")
+        
+        # If it's a room dataset (or unknown), clear room data
+        if dataset_type in ['rooms', 'unknown']:
+            room_importer = RoomImporter(db, institution_id=1)
+            room_importer.clear_data()
+            print(f"Cleared room data for deleted dataset: {dataset.filename}")
+
+    except Exception as e:
+        print(f"Warning: Failed to clear derived data: {e}")
 
     # Delete from database
     db.delete(dataset)

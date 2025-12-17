@@ -3,19 +3,14 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/GenerateTimetable.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/GenerateTimetable.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/Timetables.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/types/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync-frontend/tsconfig.app.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/tsconfig.app.tsbuildinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/routers/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/datasets.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/exporters/xlsx_exporter.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/exporters/xlsx_exporter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/exports.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/exports.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/importers/room_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/room_importer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/classsync_core/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/fitness_evaluator.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/fitness_evaluator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/ga_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/ga_engine.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/operators.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/operators.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/scheduler/repair.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/scheduler/repair.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -96,8 +91,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PY-253.28294.336" />
-        <option value="bundled-python-sdk-0978a7220b69-9867c7d4c0a4-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.28294.336" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-WS-253.28294.332" />
       </set>
     </attachedChunks>
   </component>
@@ -115,6 +109,10 @@
       <workItem from="1765614711730" duration="7062000" />
       <workItem from="1765718760313" duration="8105000" />
       <workItem from="1765807517350" duration="2957000" />
+      <workItem from="1765878096720" duration="727000" />
+      <workItem from="1765882326571" duration="655000" />
+      <workItem from="1765894005251" duration="1252000" />
+      <workItem from="1765981403595" duration="419000" />
     </task>
     <servers />
   </component>

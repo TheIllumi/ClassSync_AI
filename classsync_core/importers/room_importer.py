@@ -5,6 +5,7 @@ Room importer - creates Room records from validated CSV data.
 import pandas as pd
 from typing import Dict, Any
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from classsync_core.importers.base_importer import BaseImporter, ImportResult
 from classsync_core.models import Room, RoomType
@@ -32,25 +33,41 @@ class RoomImporter(BaseImporter):
             self.result.errors.append(f"Missing columns: {missing}")
             return self.result
 
-        # Process each row
-        for idx, row in df.iterrows():
-            row_num = idx + 2  # Account for header and 0-indexing
+        try:
+            # Step 0: Clear existing rooms (Single Source of Truth)
+            self.clear_data()
+            
+            # Process each row
+            for idx, row in df.iterrows():
+                row_num = idx + 2  # Account for header and 0-indexing
 
-            try:
-                self._import_room(row, row_num)
-            except Exception as e:
-                self.log_error(row_num, f"Failed to import: {str(e)}")
+                try:
+                    self._import_room(row, row_num)
+                except Exception as e:
+                    self.log_error(row_num, f"Failed to import: {str(e)}")
 
-        # Commit if no errors
-        if self.result.success:
-            try:
-                self.commit()
-            except Exception as e:
-                self.result.errors.append(f"Commit failed: {str(e)}")
-        else:
+            # Commit if no errors
+            if self.result.success:
+                try:
+                    self.commit()
+                except Exception as e:
+                    self.result.errors.append(f"Commit failed: {str(e)}")
+            else:
+                self.rollback()
+        except Exception as e:
             self.rollback()
+            self.result.errors.append(f"Import process failed: {str(e)}")
 
         return self.result
+
+    def clear_data(self):
+        """Soft delete all existing rooms for this institution."""
+        now = datetime.utcnow()
+        self.db.query(Room).filter(
+            Room.institution_id == self.institution_id,
+            Room.is_deleted == False
+        ).update({Room.is_deleted: True, Room.deleted_at: now})
+        self.db.flush()
 
     def _import_room(self, row: pd.Series, row_num: int):
         """Import a single room."""
