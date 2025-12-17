@@ -24,7 +24,7 @@ const COURSE_COLORS = [
     'bg-cyan-100 border-cyan-300 text-cyan-900',
 ]
 
-const PIXELS_PER_30_MIN = 30
+const PIXELS_PER_30_MIN = 27
 
 interface TimetableEntry {
     id: number
@@ -251,7 +251,7 @@ export function TimetableView() {
 
     // Zoomed values - SIGNIFICANTLY REDUCED for ultra-compact cards
     const currentPixelsPer30Min = PIXELS_PER_30_MIN * zoomLevel
-    const minColumnWidth = 110 * zoomLevel // Reduced from 200 to 110 (45% reduction!)
+    const minColumnWidth = 80 * zoomLevel // Reduced for ultra-compact cards (User requested minimal horizontal space)
 
     return (
         <div className="space-y-6">
@@ -353,6 +353,18 @@ export function TimetableView() {
                                             onClick={() => handleExport('room')}
                                         >
                                             By Room
+                                        </button>
+                                        <button
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                            onClick={() => handleExport('program')}
+                                        >
+                                            By Program
+                                        </button>
+                                        <button
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                            onClick={() => handleExport('free_slots')}
+                                        >
+                                            By Free Slots
                                         </button>
                                     </div>
                                 </div>
@@ -575,10 +587,12 @@ export function TimetableView() {
                                                                             <span className="leading-none truncate">{entry.room.code}</span>
                                                                         </div>
 
-                                                                        {/* Section */}
+                                                                        {/* Section & Program */}
                                                                         <div className="flex items-center gap-[2px] opacity-85">
                                                                             <GraduationCap className="h-[0.85em] w-[0.85em] shrink-0 opacity-70" />
-                                                                            <span className="leading-none font-semibold truncate">{entry.section.code}</span>
+                                                                            <span className="leading-none font-semibold truncate">
+                                                                                {entry.section.name} - {entry.section.code}
+                                                                            </span>
                                                                         </div>
 
                                                                         {/* Teacher */}
@@ -621,11 +635,14 @@ export function TimetableView() {
                                     (e: TimetableEntry) => e.course.code === courseCode
                                 )
                                 return (
-                                    <div key={courseCode} className="flex items-center gap-2">
-                                        <div className={cn('w-4 h-4 rounded border-2 flex-shrink-0', color)} />
+                                    <div 
+                                        key={courseCode} 
+                                        className="flex items-center gap-2 group cursor-help transition-all hover:bg-muted/50 p-1.5 rounded-md"
+                                        title={`Course: ${course?.course.name}\nCode: ${courseCode}\nTeacher: ${course?.teacher.name || 'Multiple'}`}
+                                    >
+                                        <div className={cn('w-3 h-3 rounded-full flex-shrink-0 shadow-sm', color)} />
                                         <div className="min-w-0">
-                                            <span className="text-sm font-medium block">{courseCode}</span>
-                                            <span className="text-xs text-muted-foreground block truncate">
+                                            <span className="text-sm font-medium block truncate leading-tight">
                                                 {course?.course.name}
                                             </span>
                                         </div>
