@@ -38,12 +38,17 @@ class BaseExporter(ABC):
         """
         Load timetable data as DataFrame with all related information.
 
+        Teacher data comes from TimetableEntry.teacher_id, which is the
+        section-specific teacher assigned during scheduling (not from Course).
+
         Args:
             timetable_id: ID of timetable to load
 
         Returns:
             DataFrame with complete timetable data
         """
+        from sqlalchemy.orm import joinedload
+
         # Get timetable
         timetable = self.db.query(Timetable).filter(
             Timetable.id == timetable_id
@@ -52,8 +57,13 @@ class BaseExporter(ABC):
         if not timetable:
             raise ValueError(f"Timetable {timetable_id} not found")
 
-        # Get all entries
-        entries = self.db.query(TimetableEntry).filter(
+        # Get all entries with eager loading for efficiency
+        entries = self.db.query(TimetableEntry).options(
+            joinedload(TimetableEntry.course),
+            joinedload(TimetableEntry.teacher),
+            joinedload(TimetableEntry.room),
+            joinedload(TimetableEntry.section)
+        ).filter(
             TimetableEntry.timetable_id == timetable_id
         ).all()
 
@@ -62,24 +72,53 @@ class BaseExporter(ABC):
         day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
         for entry in entries:
-            # Load related entities
-            course = self.db.query(Course).get(entry.course_id)
-            teacher = self.db.query(Teacher).get(entry.teacher_id)
-            room = self.db.query(Room).get(entry.room_id)
-            section = self.db.query(Section).get(entry.section_id)
+            # Use eager-loaded relationships (already loaded via joinedload)
+            course = entry.course
+            teacher = entry.teacher  # Section-specific teacher from TimetableEntry
+            room = entry.room
+            section = entry.section
+
+            # Safely get course code - prioritize dataset value
+            course_code = 'Unknown'
+            if course:
+                course_code = course.code if course.code else 'Unknown'
+
+            # Safely get teacher info
+            instructor_name = 'Unknown'
+            teacher_code = 'Unknown'
+            if teacher:
+                instructor_name = teacher.name if teacher.name else 'Unknown'
+                teacher_code = teacher.code if teacher.code else 'Unknown'
+
+            # Safely get room info
+            room_code = 'Unknown'
+            room_type = 'Unknown'
+            building = 'Unknown'
+            if room:
+                room_code = room.code if room.code else 'Unknown'
+                room_type = room.room_type.value if room.room_type else 'Unknown'
+                building = room.building if room.building else 'N/A'
+
+            # Safely get section/program info
+            section_code = 'Unknown'
+            program = 'Unknown'
+            if section:
+                section_code = section.code if section.code else 'Unknown'
+                program = section.name if section.name else section_code
 
             data.append({
                 'Timetable_ID': timetable_id,
                 'Entry_ID': entry.id,
-                'Course_Code': course.code if course else 'Unknown',
+                'Course_Code': course_code,
                 'Course_Name': course.name if course else 'Unknown',
-                'Section': section.code if section else 'Unknown',
-                'Instructor': teacher.name if teacher else 'Unknown',
-                'Teacher_Code': teacher.code if teacher else 'Unknown',
-                'Room': room.code if room else 'Unknown',
-                'Room_Type': room.room_type.value if room else 'Unknown',
-                'Building': room.building if room else 'Unknown',
-                'Weekday': day_names[entry.day_of_week] if entry.day_of_week < len(day_names) else 'Unknown',
+                'Section': section_code,
+                'Program': program,
+                'Instructor': instructor_name,
+                'Teacher_Code': teacher_code,
+                'Room': room_code,
+                'Room_Type': room_type,
+                'Building': building,
+                'Weekday': day_names[entry.day_of_week] if 0 <= entry.day_of_week < len(day_names) else 'Unknown',
                 'Start_Time': entry.start_time,
                 'End_Time': entry.end_time,
                 'Duration_Minutes': self._calculate_duration(entry.start_time, entry.end_time),
