@@ -41,16 +41,32 @@ export function Upload() {
         },
     })
 
-    // Delete mutation
-    const deleteMutation = useMutation({
-        mutationFn: (id: number) => datasetsApi.delete(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['datasets'] })
-        },
-    })
+    const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false)
 
-    const handleUpload = (file: File, type: string) => {
-        uploadMutation.mutate({ file, type })
+    // ... existing hooks ...
+
+    const downloadTemplate = (type: 'courses' | 'rooms') => {
+        let content = ''
+        let filename = ''
+
+        if (type === 'courses') {
+            content = 'course_name,instructor,section,program,type,hours_per_week\nCalculus I,Dr. Smith,A,CS,Theory,3\nPhysics Lab,Prof. Doe,A,CS,Lab,3'
+            filename = 'courses_template.csv'
+        } else {
+            content = 'room_name,type,capacity\nRoom 101,Theory,50\nLab 1,Lab,30'
+            filename = 'rooms_template.csv'
+        }
+
+        const blob = new Blob([content], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        setIsTemplateMenuOpen(false)
     }
 
     return (
@@ -63,10 +79,41 @@ export function Upload() {
                         Upload your institutional data for scheduling.
                     </p>
                 </div>
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Templates
-                </Button>
+                <div className="relative">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hidden sm:flex"
+                        onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Templates
+                    </Button>
+
+                    {isTemplateMenuOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsTemplateMenuOpen(false)} />
+                            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground ring-1 ring-black ring-opacity-5 z-50 border border-border animate-in zoom-in-95 duration-200">
+                                <div className="py-1" role="menu">
+                                    <button
+                                        className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => downloadTemplate('courses')}
+                                    >
+                                        <LibraryBig className="mr-2 h-4 w-4 text-blue-500" />
+                                        Courses Template
+                                    </button>
+                                    <button
+                                        className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        onClick={() => downloadTemplate('rooms')}
+                                    >
+                                        <School className="mr-2 h-4 w-4 text-orange-500" />
+                                        Rooms Template
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Upload Status Toast */}
@@ -86,10 +133,10 @@ export function Upload() {
             )}
 
             {/* Main Content Grid */}
-            <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-6">
+            <div className="flex-1 min-h-0 flex flex-col gap-6">
                 
                 {/* Top Row: Upload & Guidelines (Equal Height) */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[420px]">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[420px] shrink-0 relative z-10">
                     {/* Left: Upload Component */}
                     <div className="lg:col-span-7 h-full">
                         <FileUpload
@@ -166,7 +213,7 @@ export function Upload() {
                 </div>
 
                 {/* Bottom Row: Uploaded Files List */}
-                <div className="flex flex-col min-h-0">
+                <div className="flex flex-col min-h-0 flex-1">
                     <div className="flex items-center justify-between mb-3 shrink-0">
                         <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                             <Database className="h-5 w-5 text-muted-foreground" />
@@ -177,8 +224,8 @@ export function Upload() {
                         </span>
                     </div>
 
-                    <Card className="flex-1 overflow-hidden border-border/60 shadow-sm bg-card/50 min-h-0 flex flex-col">
-                        <CardContent className="p-0 flex-1 overflow-y-auto">
+                    <Card className="max-h-full overflow-hidden border-border/60 shadow-sm bg-card/50 flex flex-col">
+                        <CardContent className="p-0 overflow-y-auto">
                             {datasets && datasets.length > 0 ? (
                                 <div className="divide-y divide-border/50">
                                     {datasets.map((dataset: any) => (
