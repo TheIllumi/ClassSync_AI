@@ -12,6 +12,7 @@ interface StatsCardProps {
         isPositive: boolean
     }
     color?: 'blue' | 'purple' | 'green' | 'coral'
+    className?: string
 }
 
 const colorClasses = {
@@ -34,12 +35,14 @@ export function StatsCard({
                               icon: Icon,
                               description,
                               trend,
-                              color = 'blue'
+                              color = 'blue',
+                              className
                           }: StatsCardProps) {
     return (
         <Card className={cn(
             "transition-all hover:shadow-lg hover:-translate-y-1 bg-gradient-to-br",
-            gradientClasses[color]
+            gradientClasses[color],
+            className
         )}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
