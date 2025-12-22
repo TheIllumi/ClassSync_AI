@@ -83,6 +83,15 @@ export const constraintsApi = {
     setDefault: (id: number) => api.post(`/constraints/configs/${id}/set-default`),
 }
 
+export const teacherConstraintsApi = {
+    list: () => api.get('/constraints/teacher-profiles'),
+    get: (id: number) => api.get(`/constraints/teacher-profiles/${id}`),
+    create: (data: any) => api.post('/constraints/teacher-profiles', data),
+    update: (id: number, data: any) => api.put(`/constraints/teacher-profiles/${id}`, data),
+    delete: (id: number) => api.delete(`/constraints/teacher-profiles/${id}`),
+    setDefault: (id: number) => api.post(`/constraints/teacher-profiles/${id}/set-default`),
+}
+
 export const healthApi = {
     check: () => api.get('/health/detailed'),
 }

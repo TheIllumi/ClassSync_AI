@@ -15,12 +15,31 @@ import {
     Database,
     AlertCircle,
     Loader2,
-    Sparkles
+    Sparkles,
+    MoreVertical,
+    Save,
+    Check
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { timetablesApi, constraintsApi, teachersApi, datasetsApi } from '@/lib/api'
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuLabel, 
+    DropdownMenuSeparator, 
+    DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { timetablesApi, constraintsApi, teachersApi, datasetsApi, teacherConstraintsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { TeacherConstraint, ConstraintType, Teacher, ConstraintConfig } from '@/types'
 
@@ -91,6 +110,111 @@ export function GenerateTimetable() {
         day: 'Monday',
         start_time: '09:00',
         end_time: '12:00',
+    })
+
+    // Profile Management State
+    const [selectedProfileId, setSelectedProfileId] = useState<string>("")
+    const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+    const [profileForm, setProfileForm] = useState({
+        name: "",
+        description: "",
+        is_default: false
+    })
+
+    // Fetch profiles
+    const { data: teacherProfiles } = useQuery({
+        queryKey: ['teacher-profiles'],
+        queryFn: () => teacherConstraintsApi.list().then(res => res.data)
+    })
+
+    // Fetch full profile details
+    const loadProfileMutation = useMutation({
+        mutationFn: (id: number) => teacherConstraintsApi.get(id),
+        onSuccess: (response) => {
+            const profile = response.data
+            // Map items back to TeacherConstraint format
+            const mappedConstraints: TeacherConstraint[] = profile.items.map((item: any) => ({
+                teacher_id: item.teacher_id,
+                constraint_type: item.constraint_type === "Blocked Slot" ? "blocked_slot" 
+                    : item.constraint_type === "Preferred Slot" ? "preferred_slot" 
+                    : "blocked_slot", // Default fallback
+                is_hard: item.priority === "hard",
+                weight: 5, // Default weight as it's not in profile item schema
+                day: DAYS.find(d => d.startsWith(item.day)) || item.day, // Map Mon -> Monday
+                start_time: item.start_time,
+                end_time: item.end_time
+            }))
+            setTeacherConstraints(mappedConstraints)
+            // Show banner or toast (using simple alert for now or implement banner)
+        }
+    })
+
+    // Save Profile Mutation
+    const saveProfileMutation = useMutation({
+        mutationFn: (data: any) => teacherConstraintsApi.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['teacher-profiles'] })
+            setProfileDialogOpen(false)
+            setProfileForm({ name: "", description: "", is_default: false })
+            alert("Profile saved successfully!")
+        }
+    })
+
+    // Delete Profile Mutation
+    const deleteProfileMutation = useMutation({
+        mutationFn: (id: number) => teacherConstraintsApi.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['teacher-profiles'] })
+            if (selectedProfileId) setSelectedProfileId("")
+        }
+    })
+
+    // Set Default Mutation
+    const setDefaultProfileMutation = useMutation({
+        mutationFn: (id: number) => teacherConstraintsApi.setDefault(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['teacher-profiles'] })
+        }
+    })
+
+    // Handle Profile Selection
+    const handleProfileSelect = (value: string) => {
+        setSelectedProfileId(value)
+        if (value) {
+            loadProfileMutation.mutate(parseInt(value))
+        }
+    }
+
+    const handleSaveProfile = () => {
+        if (!profileForm.name) return
+        
+        // Map current constraints to Profile Item format
+        const items = teacherConstraints.map(c => ({
+            teacher_id: c.teacher_id,
+            day: c.day ? c.day.substring(0, 3) : "Mon", // Map Monday -> Mon
+            start_time: c.start_time || "09:00",
+            end_time: c.end_time || "10:00",
+            constraint_type: c.constraint_type === "blocked_slot" ? "Blocked Slot" : "Preferred Slot",
+            priority: c.is_hard ? "hard" : "soft"
+        }))
+
+        saveProfileMutation.mutate({
+            name: profileForm.name,
+            description: profileForm.description,
+            is_default: profileForm.is_default,
+            items: items
+        })
+    }
+
+    // Auto-load default profile on mount if no constraints
+    useState(() => {
+        // This runs once on mount/init logic
+        if (teacherConstraints.length === 0 && teacherProfiles) {
+            const defaultProfile = teacherProfiles.find((p: any) => p.is_default)
+            if (defaultProfile) {
+                handleProfileSelect(defaultProfile.id.toString())
+            }
+        }
     })
 
     // Optimization settings
@@ -393,13 +517,62 @@ export function GenerateTimetable() {
                 <div className="md:col-span-8 space-y-6">
                     <Card className="border-border/60 shadow-sm overflow-hidden">
                         <CardHeader className="py-4 px-6 border-b bg-muted/5 flex flex-row items-center justify-between">
-                            <CardTitle className="text-base font-semibold flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                Teacher Constraints
-                            </CardTitle>
-                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                                {teacherConstraints.length} active
-                            </span>
+                            <div className="flex items-center gap-4">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted-foreground" />
+                                    Teacher Constraints
+                                </CardTitle>
+                                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                                    {teacherConstraints.length} active
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <select 
+                                    className="h-8 w-[160px] rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    value={selectedProfileId}
+                                    onChange={(e) => handleProfileSelect(e.target.value)}
+                                >
+                                    <option value="">Load Profile...</option>
+                                    {teacherProfiles?.map((p: any) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name} {p.is_default ? '(Default)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    title="Save as Profile"
+                                    onClick={() => setProfileDialogOpen(true)}
+                                    disabled={teacherConstraints.length === 0}
+                                >
+                                    <Save className="h-4 w-4" />
+                                </Button>
+
+                                {selectedProfileId && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Profile Actions</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => setDefaultProfileMutation.mutate(parseInt(selectedProfileId))}>
+                                                <Check className="mr-2 h-4 w-4" /> Set as Default
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive" onClick={() => {
+                                                if(confirm('Delete this profile?')) deleteProfileMutation.mutate(parseInt(selectedProfileId))
+                                            }}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Profile
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                            </div>
                         </CardHeader>
                         
                         <CardContent className="p-6 space-y-6">
@@ -764,6 +937,51 @@ export function GenerateTimetable() {
                     </div>
                 </div>
             )}
+
+            <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Save Constraint Profile</DialogTitle>
+                        <DialogDescription>
+                            Save current teacher constraints as a reusable profile.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Profile Name</label>
+                            <Input 
+                                placeholder="e.g. Standard Fall Constraints" 
+                                value={profileForm.name}
+                                onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Description (Optional)</label>
+                            <Input 
+                                placeholder="Brief description..." 
+                                value={profileForm.description}
+                                onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                id="is_default"
+                                className="h-4 w-4 rounded border-gray-300"
+                                checked={profileForm.is_default}
+                                onChange={(e) => setProfileForm({ ...profileForm, is_default: e.target.checked })}
+                            />
+                            <label htmlFor="is_default" className="text-sm font-medium">Set as default profile</label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setProfileDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveProfile} disabled={!profileForm.name || saveProfileMutation.isPending}>
+                            {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

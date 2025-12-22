@@ -473,3 +473,60 @@ class GenerateResponse(BaseModel):
     hard_violations: Optional[Dict[str, int]] = None
     soft_scores: Optional[Dict[str, float]] = None
     constraints_applied: Optional[Dict[str, Any]] = None
+
+
+# ============================================================================
+# TEACHER CONSTRAINT PROFILES
+# ============================================================================
+
+class TeacherConstraintItemBase(BaseModel):
+    teacher_id: Optional[int] = None
+    day: str  # "Mon", "Tue" etc.
+    start_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
+    end_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
+    constraint_type: str = Field(..., description="Blocked Slot or Preferred Slot")
+    priority: str = Field(default="hard", pattern="^(hard|soft)$")
+
+class TeacherConstraintItemCreate(TeacherConstraintItemBase):
+    pass
+
+class TeacherConstraintItemResponse(TeacherConstraintItemBase):
+    id: int
+    profile_id: int
+
+    class Config:
+        from_attributes = True
+
+class TeacherConstraintProfileBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_default: bool = False
+
+class TeacherConstraintProfileCreate(TeacherConstraintProfileBase):
+    items: List[TeacherConstraintItemCreate]
+
+class TeacherConstraintProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_default: Optional[bool] = None
+    items: Optional[List[TeacherConstraintItemCreate]] = None
+
+class TeacherConstraintProfileResponse(TeacherConstraintProfileBase):
+    id: int
+    institution_id: int
+    created_at: datetime
+    updated_at: datetime
+    items: List[TeacherConstraintItemResponse]
+
+    class Config:
+        from_attributes = True
+
+class TeacherConstraintProfileSummary(TeacherConstraintProfileBase):
+    id: int
+    institution_id: int
+    created_at: datetime
+    updated_at: datetime
+    item_count: int
+
+    class Config:
+        from_attributes = True

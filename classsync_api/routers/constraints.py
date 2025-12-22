@@ -11,15 +11,206 @@ from classsync_api.dependencies import get_institution_id, get_current_user
 from classsync_api.schemas import (
     ConstraintConfigCreate, ConstraintConfigUpdate,
     ConstraintConfigResponse, ConstraintConfigListItem,
-    MessageResponse
+    MessageResponse,
+    TeacherConstraintProfileCreate, TeacherConstraintProfileUpdate,
+    TeacherConstraintProfileResponse, TeacherConstraintProfileSummary
 )
-from classsync_core.models import ConstraintConfig
+from classsync_core.models import ConstraintConfig, TeacherConstraintProfile, TeacherConstraintItem
 
 router = APIRouter(
     prefix="/constraints",
     tags=["Constraints"]
 )
 
+
+# ============================================================================
+# TEACHER CONSTRAINT PROFILES
+# ============================================================================
+
+@router.get("/teacher-profiles", response_model=List[TeacherConstraintProfileSummary])
+async def list_teacher_profiles(
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """List all teacher constraint profiles."""
+    profiles = db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.institution_id == 1
+    ).order_by(TeacherConstraintProfile.is_default.desc(), TeacherConstraintProfile.created_at.desc()).all()
+
+    return [
+        TeacherConstraintProfileSummary(
+            id=p.id,
+            institution_id=p.institution_id,
+            name=p.name,
+            description=p.description,
+            is_default=p.is_default,
+            created_at=p.created_at,
+            updated_at=p.updated_at,
+            item_count=len(p.items)
+        )
+        for p in profiles
+    ]
+
+@router.post("/teacher-profiles", response_model=TeacherConstraintProfileResponse)
+async def create_teacher_profile(
+    profile_data: TeacherConstraintProfileCreate,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Create a new teacher constraint profile."""
+    # Handle default toggle
+    if profile_data.is_default:
+        db.query(TeacherConstraintProfile).filter(
+            TeacherConstraintProfile.institution_id == 1,
+            TeacherConstraintProfile.is_default == True
+        ).update({"is_default": False})
+
+    # Create profile
+    profile = TeacherConstraintProfile(
+        institution_id=1,
+        name=profile_data.name,
+        description=profile_data.description,
+        is_default=profile_data.is_default
+    )
+    db.add(profile)
+    db.flush() # Get ID
+
+    # Create items
+    for item in profile_data.items:
+        db_item = TeacherConstraintItem(
+            profile_id=profile.id,
+            teacher_id=item.teacher_id,
+            day=item.day,
+            start_time=item.start_time,
+            end_time=item.end_time,
+            constraint_type=item.constraint_type,
+            priority=item.priority
+        )
+        db.add(db_item)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+@router.get("/teacher-profiles/{profile_id}", response_model=TeacherConstraintProfileResponse)
+async def get_teacher_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Get full details of a teacher constraint profile."""
+    profile = db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.id == profile_id,
+        TeacherConstraintProfile.institution_id == 1
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    return profile
+
+@router.put("/teacher-profiles/{profile_id}", response_model=TeacherConstraintProfileResponse)
+async def update_teacher_profile(
+    profile_id: int,
+    profile_data: TeacherConstraintProfileUpdate,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Update a teacher constraint profile."""
+    profile = db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.id == profile_id,
+        TeacherConstraintProfile.institution_id == 1
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Update metadata
+    if profile_data.name is not None:
+        profile.name = profile_data.name
+    if profile_data.description is not None:
+        profile.description = profile_data.description
+    
+    # Handle default toggle
+    if profile_data.is_default is not None:
+        if profile_data.is_default and not profile.is_default:
+            db.query(TeacherConstraintProfile).filter(
+                TeacherConstraintProfile.institution_id == 1,
+                TeacherConstraintProfile.is_default == True
+            ).update({"is_default": False})
+        profile.is_default = profile_data.is_default
+
+    # Replace items if provided
+    if profile_data.items is not None:
+        # Delete existing items
+        db.query(TeacherConstraintItem).filter(TeacherConstraintItem.profile_id == profile.id).delete()
+        
+        # Add new items
+        for item in profile_data.items:
+            db_item = TeacherConstraintItem(
+                profile_id=profile.id,
+                teacher_id=item.teacher_id,
+                day=item.day,
+                start_time=item.start_time,
+                end_time=item.end_time,
+                constraint_type=item.constraint_type,
+                priority=item.priority
+            )
+            db.add(db_item)
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+@router.delete("/teacher-profiles/{profile_id}", response_model=MessageResponse)
+async def delete_teacher_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Delete a teacher constraint profile."""
+    profile = db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.id == profile_id,
+        TeacherConstraintProfile.institution_id == 1
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    db.delete(profile)
+    db.commit()
+    return MessageResponse(message="Profile deleted successfully", details={"id": profile_id})
+
+@router.post("/teacher-profiles/{profile_id}/set-default", response_model=MessageResponse)
+async def set_default_teacher_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """Set a profile as default."""
+    profile = db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.id == profile_id,
+        TeacherConstraintProfile.institution_id == 1
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Unset others
+    db.query(TeacherConstraintProfile).filter(
+        TeacherConstraintProfile.institution_id == 1,
+        TeacherConstraintProfile.is_default == True
+    ).update({"is_default": False})
+
+    profile.is_default = True
+    db.commit()
+    
+    return MessageResponse(message=f"Profile '{profile.name}' set as default", details={"id": profile_id})
+
+
+# ============================================================================
+# CONSTRAINT CONFIGURATIONS (GLOBAL)
+# ============================================================================
 
 @router.get("/configs", response_model=List[ConstraintConfigListItem])
 async def list_constraint_configs(

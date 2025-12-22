@@ -181,6 +181,7 @@ class Course(Base, TimestampMixin, SoftDeleteMixin):
 
     code = Column(String(50), nullable=False)
     name = Column(String(255), nullable=False)
+    program = Column(String(100))
     course_type = Column(SQLEnum(CourseType), default=CourseType.LECTURE)
     credit_hours = Column(Integer)
 
@@ -344,3 +345,38 @@ class ConstraintConfig(Base, TimestampMixin):
 
     # Relationships
     institution = relationship("Institution", back_populates="constraint_configs")
+
+
+class TeacherConstraintProfile(Base, TimestampMixin):
+    """Profile for storing sets of teacher constraints."""
+    __tablename__ = "teacher_constraint_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    institution_id = Column(Integer, ForeignKey("institutions.id"), nullable=False, index=True)
+    
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    is_default = Column(Boolean, default=False)
+    
+    # Relationships
+    items = relationship("TeacherConstraintItem", back_populates="profile", cascade="all, delete-orphan")
+
+
+class TeacherConstraintItem(Base):
+    """Individual constraint within a profile."""
+    __tablename__ = "teacher_constraint_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    profile_id = Column(Integer, ForeignKey("teacher_constraint_profiles.id"), nullable=False, index=True)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
+    
+    day = Column(String(10), nullable=False)
+    start_time = Column(String(10), nullable=False)
+    end_time = Column(String(10), nullable=False)
+    
+    constraint_type = Column(String(50), nullable=False)
+    priority = Column(String(20), default="hard")
+
+    # Relationships
+    profile = relationship("TeacherConstraintProfile", back_populates="items")
+    teacher = relationship("Teacher")
