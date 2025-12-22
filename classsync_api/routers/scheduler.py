@@ -394,6 +394,64 @@ async def debug_database_state(
     }
 
 
+@router.get("/debug/diagnostics/download")
+async def download_diagnostics(
+        db: Session = Depends(get_db),
+        institution_id: str = Depends(get_institution_id)
+):
+    """
+    Download a comprehensive diagnostics report as a text file.
+    Includes database stats, recent activity, and system health.
+    """
+    import io
+    from fastapi.responses import StreamingResponse
+
+    # Reuse debug logic to get stats
+    state = await debug_database_state(db, institution_id)
+    
+    # Get recent timetables for performance stats
+    timetables = db.query(Timetable).filter(
+        Timetable.institution_id == 1
+    ).order_by(Timetable.created_at.desc()).limit(5).all()
+
+    # Build report
+    report = []
+    report.append("=" * 50)
+    report.append(f"CLASSSYNC AI - SYSTEM DIAGNOSTICS REPORT")
+    report.append(f"Generated: {datetime.utcnow().isoformat()}")
+    report.append("=" * 50)
+    report.append("\n[DATABASE STATE]")
+    report.append(f"Active Teachers: {state['summary']['active_teachers']}")
+    report.append(f"Active Courses: {state['summary']['active_courses']}")
+    report.append(f"Active Sections: {state['summary']['active_sections']}")
+    report.append(f"Total Datasets: {state['summary']['total_datasets']}")
+    
+    if state['diagnosis']['issue_detected']:
+        report.append("\n[WARNINGS]")
+        report.append(f"Issue Detected: {state['diagnosis']['message']}")
+
+    report.append("\n[RECENT TIMETABLES]")
+    if timetables:
+        for t in timetables:
+            report.append(f"- ID {t.id} ({t.created_at}): Score {t.constraint_score}, Time {t.generation_time_seconds}s, Status {t.status}")
+    else:
+        report.append("No timetables generated yet.")
+
+    report.append("\n[RECENT DATASETS]")
+    for d in state['recent_datasets']:
+        report.append(f"- {d['filename']} ({d['status']}) - {d['created_at']}")
+
+    # Create file stream
+    content = "\n".join(report)
+    stream = io.BytesIO(content.encode('utf-8'))
+    
+    return StreamingResponse(
+        stream,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=classsync_diagnostics_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"}
+    )
+
+
 @router.delete("/debug/hard-reset")
 async def hard_reset_all_data(
         confirm: bool = False,

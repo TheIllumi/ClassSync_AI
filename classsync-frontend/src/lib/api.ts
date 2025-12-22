@@ -70,6 +70,8 @@ export const timetablesApi = {
             params: { format, view_type: viewType },
             responseType: 'blob',
         }),
+    downloadDiagnostics: () => api.get('/scheduler/debug/diagnostics/download', { responseType: 'blob' }),
+    hardReset: () => api.delete('/scheduler/debug/hard-reset?confirm=true'),
 }
 
 export const constraintsApi = {

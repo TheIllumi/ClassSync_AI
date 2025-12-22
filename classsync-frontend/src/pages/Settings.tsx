@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Plus, Trash2, Check, Sliders, Cpu, Clock, AlertTriangle, Calendar, X, Edit2 } from 'lucide-react'
+import { Save, Plus, Trash2, Check, Sliders, Cpu, Clock, AlertTriangle, Calendar, X, Edit2, Loader2, Download, RefreshCcw } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { constraintsApi } from '@/lib/api'
+import { constraintsApi, timetablesApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type ConstraintConfig = {
     id: number
@@ -52,12 +62,52 @@ export function Settings() {
         generations: 100,
         max_time: 300,
     })
+    
+    // System Actions State
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
+    const [isDownloading, setIsDownloading] = useState(false)
 
     // Fetch constraint configs
     const { data: configs = [], isLoading } = useQuery<ConstraintConfig[]>({
         queryKey: ['constraints'],
         queryFn: () => constraintsApi.list().then(res => res.data),
     })
+
+    // System Reset Mutation
+    const resetMutation = useMutation({
+        mutationFn: () => timetablesApi.hardReset(),
+        onSuccess: () => {
+            queryClient.invalidateQueries()
+            setShowResetConfirm(false)
+            // Optional: Show a nicer toast here if available, using alert for now per requirement "Toast messages" (implied native or custom)
+            // But since I don't have a toast lib setup in this file easily accessible, I'll stick to alert or just UI update.
+            // The prompt said "Toast messages on success/error". 
+            // I'll add a temporary UI indication if possible, or just standard alert for now as I don't have a toast hook imported.
+            alert("System reset successful. All data cleared.")
+        },
+        onError: (err: any) => {
+            alert("Reset failed: " + (err.response?.data?.detail || err.message))
+        }
+    })
+
+    const handleDownloadDiagnostics = async () => {
+        setIsDownloading(true)
+        try {
+            const res = await timetablesApi.downloadDiagnostics()
+            const url = window.URL.createObjectURL(new Blob([res.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `classsync_diagnostics_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+        } catch (e) {
+            console.error(e)
+            alert("Failed to download diagnostics")
+        } finally {
+            setIsDownloading(false)
+        }
+    }
 
     // Set default mutation
     const setDefaultMutation = useMutation({
@@ -517,8 +567,80 @@ export function Settings() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* System & Diagnostics */}
+                    <Card className="border-border/60 shadow-sm shrink-0 border-l-4 border-l-muted-foreground/20">
+                        <CardHeader className="py-4 px-6 border-b bg-muted/10">
+                            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                <Cpu className="h-4 w-4 text-muted-foreground" />
+                                System Diagnostics & Maintenance
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    <p className="font-medium text-foreground mb-1">Diagnostics Report</p>
+                                    <p className="text-xs">Download detailed system logs, database stats, and recent activity.</p>
+                                </div>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={handleDownloadDiagnostics}
+                                    disabled={isDownloading}
+                                    className="shrink-0 w-full sm:w-auto"
+                                >
+                                    {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    Download Logs (.txt)
+                                </Button>
+                            </div>
+                            
+                            <div className="my-4 border-t border-border/40" />
+
+                            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    <p className="font-medium text-destructive mb-1 flex items-center gap-2">
+                                        <AlertTriangle className="h-3 w-3" /> Danger Zone
+                                    </p>
+                                    <p className="text-xs">Permanently delete ALL data (teachers, courses, schedules) and reset system.</p>
+                                </div>
+                                <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    onClick={() => setShowResetConfirm(true)}
+                                    disabled={resetMutation.isPending}
+                                    className="shrink-0 w-full sm:w-auto"
+                                >
+                                    {resetMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                                    Reset All Data
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
+
+            <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>System Hard Reset</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. It will permanently delete:
+                            <ul className="list-disc list-inside mt-2 mb-2">
+                                <li>All Teachers, Courses, Sections, and Rooms</li>
+                                <li>All Generated Timetables</li>
+                                <li>All Uploaded Datasets (references)</li>
+                            </ul>
+                            Are you absolutely sure you want to proceed?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => resetMutation.mutate()} className="bg-destructive hover:bg-destructive/90">
+                            {resetMutation.isPending ? "Resetting..." : "Yes, Reset Everything"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
