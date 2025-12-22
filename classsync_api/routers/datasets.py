@@ -12,7 +12,8 @@ from classsync_api.database import get_db
 from classsync_api.dependencies import get_institution_id, get_current_user
 from classsync_api.schemas import (
     DatasetUploadResponse, DatasetListItem, MessageResponse,
-    DatasetValidationResult, DatasetTypeSchema, DatasetStatusSchema, DatasetImportStats, DatasetUploadWithImportResponse
+    DatasetValidationResult, DatasetTypeSchema, DatasetStatusSchema, DatasetImportStats, DatasetUploadWithImportResponse,
+    DatasetPreviewResponse
 )
 from classsync_core.models import Dataset, User
 from classsync_core.storage import s3_service
@@ -335,6 +336,64 @@ async def download_dataset(
         "download_url": download_url,
         "expires_in_seconds": 3600
     }
+
+
+@router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
+async def preview_dataset(
+    dataset_id: int,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    institution_id: str = Depends(get_institution_id)
+):
+    """
+    Preview dataset content with pagination.
+    """
+    dataset = db.query(Dataset).filter(
+        Dataset.id == dataset_id,
+        Dataset.institution_id == 1  # TODO: Use actual institution_id
+    ).first()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Download file content
+    content = s3_service.download_file(dataset.s3_key)
+    if not content:
+        raise HTTPException(status_code=500, detail="Failed to download file content")
+
+    try:
+        import pandas as pd
+        import io
+
+        # Read file into DataFrame
+        if dataset.filename.lower().endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+            
+        # Handle NaN values - replace with None so they become null in JSON
+        df = df.where(pd.notnull(df), None)
+
+        total_rows = len(df)
+        columns = df.columns.tolist()
+
+        # Apply pagination
+        df_page = df.iloc[offset : offset + limit]
+        
+        # Convert to list of dicts
+        rows = df_page.to_dict(orient='records')
+
+        return DatasetPreviewResponse(
+            columns=columns,
+            rows=rows,
+            total_rows=total_rows,
+            offset=offset,
+            limit=limit
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse dataset: {str(e)}")
 
 
 def _import_dataset_to_db(file_path: str, dataset_type: DatasetTypeSchema, db: Session) -> Any:

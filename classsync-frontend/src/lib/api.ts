@@ -46,6 +46,8 @@ export const datasetsApi = {
         })
     },
     delete: (id: number) => api.delete(`/datasets/${id}`),
+    preview: (id: number, params?: { offset?: number; limit?: number }) =>
+        api.get(`/datasets/${id}/preview`, { params }),
 }
 
 export const timetablesApi = {

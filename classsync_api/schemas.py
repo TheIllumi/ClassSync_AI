@@ -78,6 +78,15 @@ class DatasetUploadWithImportResponse(BaseModel):
         from_attributes = True
 
 
+class DatasetPreviewResponse(BaseModel):
+    """Response for dataset preview with pagination."""
+    columns: List[str]
+    rows: List[Dict[str, Any]]
+    total_rows: int
+    offset: int
+    limit: int
+
+
 class DatasetListItem(BaseModel):
     """Dataset item in list view."""
     id: int

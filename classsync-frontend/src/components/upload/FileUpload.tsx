@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Upload, X, FileText, CheckCircle, AlertCircle, LibraryBig, School, ArrowRight } from 'lucide-react'
+import { Upload, X, FileText, LibraryBig, School, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'

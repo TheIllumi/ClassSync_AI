@@ -1,7 +1,18 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileUpload } from '@/components/upload/FileUpload'
+import { DataPreviewModal } from '@/components/datasets/DataPreviewModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button'
 import { datasetsApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
@@ -42,12 +53,16 @@ export function Upload() {
     })
 
     const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false)
+    const [previewOpen, setPreviewOpen] = useState(false)
+    const [previewDataset, setPreviewDataset] = useState<{ id: number, file_name: string } | null>(null)
+    const [datasetToDelete, setDatasetToDelete] = useState<{ id: number, file_name: string } | null>(null)
 
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: (id: number) => datasetsApi.delete(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['datasets'] })
+            setDatasetToDelete(null)
         },
     })
 
@@ -279,14 +294,27 @@ export function Upload() {
 
                                             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-xs font-medium"
+                                                    onClick={() => {
+                                                        setPreviewDataset({ 
+                                                            id: dataset.id, 
+                                                            file_name: dataset.filename || dataset.file_name 
+                                                        })
+                                                        setPreviewOpen(true)
+                                                    }}
+                                                >
+                                                    View Data
+                                                </Button>
+                                                <Button
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                    onClick={() => {
-                                                        if (confirm('Delete dataset?')) {
-                                                            deleteMutation.mutate(dataset.id)
-                                                        }
-                                                    }}
+                                                    onClick={() => setDatasetToDelete({ 
+                                                        id: dataset.id, 
+                                                        file_name: dataset.filename || dataset.file_name 
+                                                    })}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -309,6 +337,33 @@ export function Upload() {
                     </Card>
                 </div>
             </div>
+
+            <DataPreviewModal 
+                open={previewOpen} 
+                onOpenChange={setPreviewOpen} 
+                datasetId={previewDataset?.id ?? null} 
+                fileName={previewDataset?.file_name} 
+            />
+
+            <AlertDialog open={!!datasetToDelete} onOpenChange={(open) => !open && setDatasetToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete the dataset <span className="font-medium text-foreground">{datasetToDelete?.file_name}</span> and remove all associated records from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={() => datasetToDelete && deleteMutation.mutate(datasetToDelete.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

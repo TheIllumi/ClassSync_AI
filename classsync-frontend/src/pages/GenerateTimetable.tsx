@@ -1,24 +1,23 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import {
-    Sparkles,
-    Loader2,
-    Plus,
-    Trash2,
-    User,
-    AlertCircle,
-    CheckCircle,
-    ChevronDown,
-    ChevronUp,
-    Settings2,
-    Lock,
+import { 
+    Lock, 
     Unlock,
+    Sliders,
     Clock,
+    User,
+    Trash2,
+    Plus,
+    Settings2,
+    ChevronUp,
+    ChevronDown,
     Database,
-    Sliders
+    AlertCircle,
+    Loader2,
+    Sparkles
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { timetablesApi, constraintsApi, teachersApi, datasetsApi } from '@/lib/api'
@@ -216,7 +215,6 @@ export function GenerateTimetable() {
     // Calculate validation errors
     const validationErrors = validateConstraints()
     const hasErrors = validationErrors.some(e => e.type === 'error')
-    const hasWarnings = validationErrors.some(e => e.type === 'warning')
 
     // Fetch data
     const { data: constraintConfigs } = useQuery({
@@ -234,7 +232,6 @@ export function GenerateTimetable() {
         queryFn: () => datasetsApi.list().then(res => res.data),
     })
 
-    // Generate mutation
     const generateMutation = useMutation({
         mutationFn: () => timetablesApi.generate({
             constraint_config_id: selectedConfigId || undefined,
@@ -752,6 +749,17 @@ export function GenerateTimetable() {
                             <p className="opacity-90 mt-1">
                                 {((generateMutation.error as any)?.response?.data?.detail?.message) || 'An unexpected error occurred.'}
                             </p>
+                            {/* Show validation errors if available */}
+                            {((generateMutation.error as any)?.response?.data?.detail?.validation_errors) && (
+                                <ul className="mt-2 list-disc list-inside text-xs opacity-90 space-y-1">
+                                    {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).slice(0, 3).map((err, i) => (
+                                        <li key={i}>{err}</li>
+                                    ))}
+                                    {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).length > 3 && (
+                                        <li>+ {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).length - 3} more errors</li>
+                                    )}
+                                </ul>
+                            )}
                         </div>
                     </div>
                 </div>
