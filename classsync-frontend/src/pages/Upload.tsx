@@ -223,7 +223,7 @@ export function Upload() {
                 </div>
 
                 {/* Bottom Row: Uploaded Files List */}
-                <div className="flex flex-col min-h-0 flex-1">
+                <div className="flex flex-col min-h-0 flex-1 mt-10 relative z-10">
                     <div className="flex items-center justify-between mb-3 shrink-0">
                         <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                             <Database className="h-5 w-5 text-muted-foreground" />
