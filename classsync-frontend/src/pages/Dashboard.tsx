@@ -1,15 +1,42 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, Upload, Clock, CheckCircle, PieChart, ArrowRight, Plus, Activity } from 'lucide-react'
+import { Calendar, Upload, Clock, CheckCircle, PieChart, ArrowRight, Plus, Activity, RefreshCw } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { timetablesApi, dashboardApi, healthApi } from '@/lib/api'
 import { formatDateTime, formatDate } from '@/lib/utils'
+import { useM365Layout } from '@/contexts/M365LayoutContext'
 
 export function Dashboard() {
-    // Dashboard component with stats and recent activity
     const navigate = useNavigate()
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
+
+    // Configure layout
+    useEffect(() => {
+        setPageTitle('Dashboard')
+        setBreadcrumbs([{ label: 'Dashboard' }])
+        setPrimaryAction({
+            id: 'new-schedule',
+            label: 'New Schedule',
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => navigate('/generate'),
+        })
+        setCommandBarActions([
+            {
+                id: 'refresh',
+                label: 'Refresh',
+                icon: <RefreshCw className="h-4 w-4" />,
+                onClick: () => window.location.reload(),
+            },
+        ])
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions, navigate])
 
     // Fetch dashboard stats
     const { data: stats } = useQuery({
@@ -45,24 +72,14 @@ export function Dashboard() {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-8">
             {/* 1. Compact Banner */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/20 via-primary/5 to-background/50 border border-primary/10 px-6 py-5 shadow-sm">
-                <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-foreground">
-                            {getGreeting()}, Admin
-                        </h1>
-                        <p className="text-muted-foreground text-sm">
-                            {formatDate(new Date())} • System Optimized
-                        </p>
-                    </div>
-                    <Button 
-                        size="sm" 
-                        className="shadow-sm hover:shadow-md transition-all bg-primary text-primary-foreground h-9 px-4"
-                        onClick={() => navigate('/timetables')} 
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Schedule
-                    </Button>
+            <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-border px-6 py-5">
+                <div className="relative z-10">
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                        {getGreeting()}, Admin
+                    </h1>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        {formatDate(new Date())} • System Optimized
+                    </p>
                 </div>
             </div>
 

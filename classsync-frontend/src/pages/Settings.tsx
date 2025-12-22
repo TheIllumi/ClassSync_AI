@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Plus, Trash2, Check, Sliders, Cpu, Clock, AlertTriangle, Calendar, X, Edit2, Loader2, Download, RefreshCcw } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +16,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useM365Layout } from '@/contexts/M365LayoutContext'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 type ConstraintConfig = {
     id: number
@@ -50,6 +52,7 @@ const Modal = ({ title, children, onClose }: { title: string, children: React.Re
 
 export function Settings() {
     const queryClient = useQueryClient()
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
 
     const [selectedConfig, setSelectedConfig] = useState<ConstraintConfig | null>(null)
     const [isCreating, setIsCreating] = useState(false)
@@ -89,25 +92,6 @@ export function Settings() {
             alert("Reset failed: " + (err.response?.data?.detail || err.message))
         }
     })
-
-    const handleDownloadDiagnostics = async () => {
-        setIsDownloading(true)
-        try {
-            const res = await timetablesApi.downloadDiagnostics()
-            const url = window.URL.createObjectURL(new Blob([res.data]))
-            const link = document.createElement('a')
-            link.href = url
-            link.setAttribute('download', `classsync_diagnostics_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`)
-            document.body.appendChild(link)
-            link.click()
-            link.remove()
-        } catch (e) {
-            console.error(e)
-            alert("Failed to download diagnostics")
-        } finally {
-            setIsDownloading(false)
-        }
-    }
 
     // Set default mutation
     const setDefaultMutation = useMutation({
@@ -156,6 +140,55 @@ export function Settings() {
 
     const defaultConfig = configs.find(c => c.is_default)
     const activeConfig = selectedConfig || defaultConfig
+
+    // Download diagnostics handler
+    const handleDownloadDiagnostics = useCallback(async () => {
+        setIsDownloading(true)
+        try {
+            const res = await timetablesApi.downloadDiagnostics()
+            const url = window.URL.createObjectURL(new Blob([res.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `classsync_diagnostics_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+        } catch (e) {
+            console.error(e)
+            alert("Failed to download diagnostics")
+        } finally {
+            setIsDownloading(false)
+        }
+    }, [])
+
+    // Configure layout
+    useEffect(() => {
+        setPageTitle('Settings')
+        setBreadcrumbs([
+            { label: 'Dashboard', href: '/' },
+            { label: 'Settings' },
+        ])
+        setCommandBarActions([
+            {
+                id: 'download-logs',
+                label: 'Download Logs',
+                icon: <Download className="h-4 w-4" />,
+                onClick: handleDownloadDiagnostics,
+                disabled: isDownloading,
+            },
+        ])
+        setPrimaryAction({
+            id: 'new-profile',
+            label: 'New Profile',
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => { setFormData({}); setIsCreating(true) },
+        })
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [setPageTitle, setBreadcrumbs, setCommandBarActions, setPrimaryAction, handleDownloadDiagnostics, isDownloading])
 
     // Initialize optimizer settings when config changes
     useEffect(() => {
@@ -223,19 +256,12 @@ export function Settings() {
     const toInt = (v: string) => parseInt(v) || 0
 
     return (
-        <div className="flex flex-col h-[calc(100vh-2rem)] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-2">
+        <div className="flex flex-col space-y-6 animate-in fade-in duration-300 pb-2">
             {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Configure scheduling constraints and algorithm parameters.
-                    </p>
-                </div>
-                <Button size="sm" onClick={() => { setFormData({}); setIsCreating(true) }}>
-                    <Plus className="mr-2 h-4 w-4" /> New Profile
-                </Button>
-            </div>
+            <PageHeader
+                title="Settings"
+                subtitle="Configure scheduling constraints and algorithm parameters."
+            />
 
             {/* Create Modal */}
             {isCreating && (

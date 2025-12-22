@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -14,20 +14,45 @@ import {
     Save,
     FileText,
     FileSpreadsheet,
-    Sparkles
+    Sparkles,
+    Plus
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { timetablesApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
+import { useM365Layout } from '@/contexts/M365LayoutContext'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export function Timetables() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingName, setEditingName] = useState('')
     const [activeMenu, setActiveMenu] = useState<number | null>(null)
+
+    // Configure layout
+    useEffect(() => {
+        setPageTitle('Timetables')
+        setBreadcrumbs([
+            { label: 'Dashboard', href: '/' },
+            { label: 'Timetables' },
+        ])
+        setPrimaryAction({
+            id: 'generate-new',
+            label: 'Generate New',
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => navigate('/generate'),
+        })
+        setCommandBarActions([])
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions, navigate])
 
     // Fetch timetables
     const { data: timetables, isLoading } = useQuery({
@@ -93,24 +118,12 @@ export function Timetables() {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-in fade-in duration-300">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Timetables</h1>
-                    <p className="text-muted-foreground mt-1 text-lg">
-                        Manage your generated schedules
-                    </p>
-                </div>
-                <Button
-                    onClick={handleGenerate}
-                    size="lg"
-                    className="shadow-md hover:shadow-xl transition-all"
-                >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate New
-                </Button>
-            </div>
+            <PageHeader
+                title="Timetables"
+                subtitle="View and manage your generated schedules."
+            />
 
             {/* Timetables Grid */}
             {isLoading ? (

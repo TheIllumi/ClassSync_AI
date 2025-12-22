@@ -7,6 +7,9 @@ export default {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['"Segoe UI Variable"', '"Segoe UI"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            },
             colors: {
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
@@ -24,6 +27,14 @@ export default {
                 destructive: {
                     DEFAULT: "hsl(var(--destructive))",
                     foreground: "hsl(var(--destructive-foreground))",
+                },
+                success: {
+                    DEFAULT: "hsl(var(--success))",
+                    foreground: "hsl(var(--success-foreground))",
+                },
+                warning: {
+                    DEFAULT: "hsl(var(--warning))",
+                    foreground: "hsl(var(--warning-foreground))",
                 },
                 muted: {
                     DEFAULT: "hsl(var(--muted))",
@@ -46,6 +57,14 @@ export default {
                 lg: "var(--radius)",
                 md: "calc(var(--radius) - 2px)",
                 sm: "calc(var(--radius) - 4px)",
+            },
+            height: {
+                nav: "var(--nav-height)",
+                commandbar: "var(--commandbar-height)",
+            },
+            minHeight: {
+                nav: "var(--nav-height)",
+                commandbar: "var(--commandbar-height)",
             },
         },
     },

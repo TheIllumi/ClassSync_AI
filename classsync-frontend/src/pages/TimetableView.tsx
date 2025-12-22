@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Download, Calendar, Clock, Users, Building, GraduationCap, MapPin, UserRound, Plus, Minus, ChevronDown, Edit2, Save, X } from 'lucide-react'
+import { ArrowLeft, Download, Calendar, Clock, Users, Building, GraduationCap, MapPin, UserRound, Plus, Minus, ChevronDown, Edit2, Save, X, FileSpreadsheet, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { timetablesApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useM365Layout } from '@/contexts/M365LayoutContext'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
@@ -78,6 +79,8 @@ export function TimetableView() {
         },
     })
 
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
+
     const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, 2))
     const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.1, 0.1))
 
@@ -105,6 +108,60 @@ export function TimetableView() {
             renameMutation.mutate({ id: Number(id), name: editingName })
         }
     }
+
+    // Configure layout
+    useEffect(() => {
+        setPageTitle(timetable?.name || 'Timetable')
+        setBreadcrumbs([
+            { label: 'Dashboard', href: '/' },
+            { label: 'Timetables', href: '/timetables' },
+            { label: timetable?.name || 'View' },
+        ])
+        setCommandBarActions([
+            {
+                id: 'zoom-out',
+                label: 'Zoom Out',
+                icon: <Minus className="h-4 w-4" />,
+                onClick: handleZoomOut,
+            },
+            {
+                id: 'zoom-in',
+                label: 'Zoom In',
+                icon: <Plus className="h-4 w-4" />,
+                onClick: handleZoomIn,
+            },
+        ])
+        setPrimaryAction({
+            id: 'export',
+            label: 'Export',
+            icon: <Download className="h-4 w-4" />,
+            dropdown: [
+                {
+                    id: 'export-master',
+                    label: 'Master View (All)',
+                    icon: <FileSpreadsheet className="h-4 w-4" />,
+                    onClick: () => handleExport('master'),
+                },
+                {
+                    id: 'export-teacher',
+                    label: 'By Teacher',
+                    icon: <FileText className="h-4 w-4" />,
+                    onClick: () => handleExport('teacher'),
+                },
+                {
+                    id: 'export-room',
+                    label: 'By Room',
+                    icon: <FileText className="h-4 w-4" />,
+                    onClick: () => handleExport('room'),
+                },
+            ],
+        })
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [timetable?.name, setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions])
 
     if (isLoading) {
         return (

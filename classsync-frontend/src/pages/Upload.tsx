@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileUpload } from '@/components/upload/FileUpload'
 import { DataPreviewModal } from '@/components/datasets/DataPreviewModal'
@@ -17,13 +17,78 @@ import { Button } from '@/components/ui/button'
 import { datasetsApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
 import { Trash2, CheckCircle, XCircle, LibraryBig, School, Database, FileSpreadsheet, Download, Info } from 'lucide-react'
+import { useM365Layout } from '@/contexts/M365LayoutContext'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export function Upload() {
     const queryClient = useQueryClient()
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
+
     const [uploadStatus, setUploadStatus] = useState<{
         success: boolean
         message: string
     } | null>(null)
+    const [previewOpen, setPreviewOpen] = useState(false)
+    const [previewDataset, setPreviewDataset] = useState<{ id: number, file_name: string } | null>(null)
+    const [datasetToDelete, setDatasetToDelete] = useState<{ id: number, file_name: string } | null>(null)
+
+    // Template download function
+    const downloadTemplate = useCallback((type: 'courses' | 'rooms') => {
+        let content = ''
+        let filename = ''
+
+        if (type === 'courses') {
+            content = 'course_name,instructor,section,program,type,hours_per_week\nCalculus I,Dr. Smith,A,CS,Theory,3\nPhysics Lab,Prof. Doe,A,CS,Lab,3'
+            filename = 'courses_template.csv'
+        } else {
+            content = 'room_name,type,capacity\nRoom 101,Theory,50\nLab 1,Lab,30'
+            filename = 'rooms_template.csv'
+        }
+
+        const blob = new Blob([content], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+    }, [])
+
+    // Configure layout
+    useEffect(() => {
+        setPageTitle('Data Management')
+        setBreadcrumbs([
+            { label: 'Dashboard', href: '/' },
+            { label: 'Upload Datasets' },
+        ])
+        setPrimaryAction({
+            id: 'download-templates',
+            label: 'Download Templates',
+            icon: <Download className="h-4 w-4" />,
+            dropdown: [
+                {
+                    id: 'courses-template',
+                    label: 'Courses Template',
+                    icon: <LibraryBig className="h-4 w-4 text-blue-500" />,
+                    onClick: () => downloadTemplate('courses'),
+                },
+                {
+                    id: 'rooms-template',
+                    label: 'Rooms Template',
+                    icon: <School className="h-4 w-4 text-orange-500" />,
+                    onClick: () => downloadTemplate('rooms'),
+                },
+            ],
+        })
+        setCommandBarActions([])
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions, downloadTemplate])
 
     // Fetch existing datasets
     const { data: datasets } = useQuery({
@@ -52,11 +117,6 @@ export function Upload() {
         },
     })
 
-    const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false)
-    const [previewOpen, setPreviewOpen] = useState(false)
-    const [previewDataset, setPreviewDataset] = useState<{ id: number, file_name: string } | null>(null)
-    const [datasetToDelete, setDatasetToDelete] = useState<{ id: number, file_name: string } | null>(null)
-
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: (id: number) => datasetsApi.delete(id),
@@ -70,76 +130,13 @@ export function Upload() {
         uploadMutation.mutate({ file, type })
     }
 
-    const downloadTemplate = (type: 'courses' | 'rooms') => {
-        let content = ''
-        let filename = ''
-
-        if (type === 'courses') {
-            content = 'course_name,instructor,section,program,type,hours_per_week\nCalculus I,Dr. Smith,A,CS,Theory,3\nPhysics Lab,Prof. Doe,A,CS,Lab,3'
-            filename = 'courses_template.csv'
-        } else {
-            content = 'room_name,type,capacity\nRoom 101,Theory,50\nLab 1,Lab,30'
-            filename = 'rooms_template.csv'
-        }
-
-        const blob = new Blob([content], { type: 'text/csv' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        setIsTemplateMenuOpen(false)
-    }
-
     return (
-        <div className="flex flex-col h-[calc(100vh-2rem)] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-2">
+        <div className="flex flex-col space-y-6 animate-in fade-in duration-300 pb-2">
             {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Upload your institutional data for scheduling.
-                    </p>
-                </div>
-                <div className="relative">
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="hidden sm:flex"
-                        onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)}
-                    >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Templates
-                    </Button>
-
-                    {isTemplateMenuOpen && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setIsTemplateMenuOpen(false)} />
-                            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground ring-1 ring-black ring-opacity-5 z-50 border border-border animate-in zoom-in-95 duration-200">
-                                <div className="py-1" role="menu">
-                                    <button
-                                        className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        onClick={() => downloadTemplate('courses')}
-                                    >
-                                        <LibraryBig className="mr-2 h-4 w-4 text-blue-500" />
-                                        Courses Template
-                                    </button>
-                                    <button
-                                        className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        onClick={() => downloadTemplate('rooms')}
-                                    >
-                                        <School className="mr-2 h-4 w-4 text-orange-500" />
-                                        Rooms Template
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
+            <PageHeader
+                title="Data Management"
+                subtitle="Upload your institutional data for scheduling."
+            />
 
             {/* Upload Status Toast */}
             {uploadStatus && (

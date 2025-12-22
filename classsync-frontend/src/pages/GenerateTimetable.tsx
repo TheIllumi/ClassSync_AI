@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { 
-    Lock, 
+import {
+    Lock,
     Unlock,
     Sliders,
     Clock,
@@ -20,6 +20,8 @@ import {
     Save,
     Check
 } from 'lucide-react'
+import { useM365Layout } from '@/contexts/M365LayoutContext'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -91,6 +93,7 @@ function slotsOverlap(start1: string, end1: string, start2: string, end2: string
 export function GenerateTimetable() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { setPageTitle, setBreadcrumbs, setPrimaryAction, setCommandBarActions } = useM365Layout()
 
     // State for constraint configuration
     const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null)
@@ -356,6 +359,9 @@ export function GenerateTimetable() {
         queryFn: () => datasetsApi.list().then(res => res.data),
     })
 
+    // Check if datasets are available
+    const hasDatasets = datasets && datasets.length > 0
+
     const generateMutation = useMutation({
         mutationFn: () => timetablesApi.generate({
             constraint_config_id: selectedConfigId || undefined,
@@ -372,6 +378,44 @@ export function GenerateTimetable() {
             navigate(`/timetables/${response.data.timetable_id}`)
         },
     })
+
+    // Configure layout - only run once on mount
+    useEffect(() => {
+        setPageTitle('Generate Timetable')
+        setBreadcrumbs([
+            { label: 'Dashboard', href: '/' },
+            { label: 'Generate' },
+        ])
+
+        return () => {
+            setCommandBarActions([])
+            setPrimaryAction(null)
+        }
+    }, [setPageTitle, setBreadcrumbs, setCommandBarActions, setPrimaryAction])
+
+    // Update command bar actions when relevant state changes
+    useEffect(() => {
+        setCommandBarActions([
+            {
+                id: 'save-profile',
+                label: 'Save Profile',
+                icon: <Save className="h-4 w-4" />,
+                onClick: () => setProfileDialogOpen(true),
+                disabled: teacherConstraints.length === 0,
+            },
+        ])
+    }, [setCommandBarActions, teacherConstraints.length])
+
+    // Update primary action separately to avoid stale closures
+    useEffect(() => {
+        setPrimaryAction({
+            id: 'generate',
+            label: generateMutation.isPending ? 'Generating...' : 'Generate Timetable',
+            icon: generateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />,
+            onClick: () => generateMutation.mutate(),
+            disabled: !hasDatasets || generateMutation.isPending || hasErrors,
+        })
+    }, [setPrimaryAction, hasDatasets, generateMutation.isPending, hasErrors])
 
     // Handlers
     const handleAddConstraint = () => {
@@ -412,25 +456,19 @@ export function GenerateTimetable() {
     const selectedConfig = constraintConfigs?.find((c: ConstraintConfig) => c.id === selectedConfigId)
     const defaultConfig = constraintConfigs?.find((c: ConstraintConfig) => c.is_default)
 
-    // Check if datasets are available
-    const hasDatasets = datasets && datasets.length > 0
-
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
+        <div className="space-y-6 animate-in fade-in duration-300">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Generate Timetable</h1>
-                    <p className="text-muted-foreground mt-1 text-lg">
-                        Configure scheduling parameters and run the AI optimizer.
-                    </p>
-                </div>
+            <PageHeader
+                title="Generate Timetable"
+                subtitle="Configure scheduling parameters and run the AI optimizer."
+            >
                 {!hasDatasets && (
-                    <Button variant="outline" onClick={() => navigate('/upload')}>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/upload')}>
                         Upload Data
                     </Button>
                 )}
-            </div>
+            </PageHeader>
 
             {/* Top Grid: Profile & Status */}
             <div className="grid gap-6 md:grid-cols-12">
@@ -877,62 +915,29 @@ export function GenerateTimetable() {
                 </div>
             </div>
 
-            {/* Sticky Bottom Action Bar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
-                <div className="bg-background/80 backdrop-blur-md border border-border/60 shadow-2xl rounded-2xl p-2 flex items-center gap-2 pl-4">
-                    <div className="flex-1 min-w-0">
-                        {generateMutation.isPending ? (
-                            <div className="flex items-center gap-3">
-                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                <div>
-                                    <p className="text-sm font-semibold">Optimizing Schedule...</p>
-                                    <p className="text-xs text-muted-foreground truncate">AI is calculating optimal slots</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3">
-                                <Sparkles className="h-5 w-5 text-primary" />
-                                <div>
-                                    <p className="text-sm font-semibold">Ready to Generate</p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                        {selectedConfig?.name || 'Default Profile'} • {teacherConstraints.length} Constraints
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <Button
-                        size="lg"
-                        className="rounded-xl shadow-lg hover:shadow-xl transition-all h-12 px-8"
-                        disabled={!hasDatasets || generateMutation.isPending || hasErrors}
-                        onClick={() => generateMutation.mutate()}
-                    >
-                        {generateMutation.isPending ? 'Processing' : 'Generate Timetable'}
-                    </Button>
-                </div>
-            </div>
-            
-            {/* Error Toast/Overlay */}
+            {/* Error Toast */}
             {generateMutation.isError && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 animate-in slide-in-from-bottom-4">
-                    <div className="bg-destructive/95 text-destructive-foreground backdrop-blur-md shadow-lg rounded-xl p-4 flex items-start gap-3">
+                <div className="fixed bottom-6 right-6 w-full max-w-md z-50 animate-in slide-in-from-right duration-300">
+                    <div className="bg-destructive text-destructive-foreground shadow-lg rounded-lg p-4 flex items-start gap-3">
                         <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                         <div className="text-sm">
                             <p className="font-semibold">Generation Failed</p>
                             <p className="opacity-90 mt-1">
                                 {((generateMutation.error as any)?.response?.data?.detail?.message) || 'An unexpected error occurred.'}
                             </p>
-                            {/* Show validation errors if available */}
-                            {((generateMutation.error as any)?.response?.data?.detail?.validation_errors) && (
-                                <ul className="mt-2 list-disc list-inside text-xs opacity-90 space-y-1">
-                                    {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).slice(0, 3).map((err, i) => (
-                                        <li key={i}>{err}</li>
-                                    ))}
-                                    {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).length > 3 && (
-                                        <li>+ {((generateMutation.error as any)?.response?.data?.detail?.validation_errors as string[]).length - 3} more errors</li>
-                                    )}
-                                </ul>
-                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading Toast */}
+            {generateMutation.isPending && (
+                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-right duration-300">
+                    <div className="bg-primary text-primary-foreground shadow-lg rounded-lg p-4 flex items-center gap-3">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <div className="text-sm">
+                            <p className="font-semibold">Generating Timetable...</p>
+                            <p className="opacity-90 text-xs">AI is optimizing your schedule</p>
                         </div>
                     </div>
                 </div>

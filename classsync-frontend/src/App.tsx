@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MainLayout } from './components/layout/MainLayout'
+import { M365Layout } from './layouts/M365Layout'
 import { Dashboard } from './pages/Dashboard'
 import { Upload } from './pages/Upload'
 import { Timetables } from './pages/Timetables'
@@ -14,10 +14,10 @@ const queryClient = new QueryClient()
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
                 <BrowserRouter>
                     <Routes>
-                        <Route path="/" element={<MainLayout />}>
+                        <Route path="/" element={<M365Layout />}>
                             <Route index element={<Dashboard />} />
                             <Route path="upload" element={<Upload />} />
                             <Route path="generate" element={<GenerateTimetable />} />
