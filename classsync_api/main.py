@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from classsync_api.config import settings
+from classsync_api.database import SessionLocal
+from classsync_api.bootstrap import ensure_default_institution
 from classsync_api.routers import health, datasets, constraints, scheduler, teachers, dashboard
 
 
@@ -19,6 +21,16 @@ app = FastAPI(
     version=settings.version,
     debug=settings.debug
 )
+
+
+@app.on_event("startup")
+def startup_bootstrap():
+    """Bootstrap required data on application startup."""
+    db = SessionLocal()
+    try:
+        ensure_default_institution(db)
+    finally:
+        db.close()
 
 
 # Configure CORS - allow all origins in demo mode for Railway deployment
