@@ -69,3 +69,7 @@ htmlcov/
 
 # Jupyter Notebooks (if you use them)
 .ipynb_checkpoints/
+
+# Allow frontend src/lib (TypeScript utilities)
+!classsync-frontend/src/lib/
+!classsync-frontend/src/lib/**
