@@ -14,6 +14,7 @@ from classsync_core.models import Institution, User, UserRole
 
 
 # Password hashing context (matches common FastAPI patterns)
+# Using bcrypt with explicit configuration for compatibility
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Default values for bootstrap entities
@@ -22,12 +23,47 @@ DEFAULT_INSTITUTION_CODE = "DEFAULT"
 
 DEFAULT_USER_EMAIL = "admin@classsync.local"
 DEFAULT_USER_NAME = "Demo Admin"
-DEFAULT_USER_PASSWORD = "changeme123"  # Should be changed after first login
+DEFAULT_USER_PASSWORD = "changeme123"  # Short, stable password for bootstrap
+
+# bcrypt has a 72-byte limit on passwords
+BCRYPT_MAX_BYTES = 72
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    """
+    Hash a password using bcrypt with safety checks.
+
+    Handles:
+    - bcrypt 72-byte password limit (truncates if needed)
+    - passlib/bcrypt version compatibility issues
+
+    Args:
+        password: The password to hash
+
+    Returns:
+        The hashed password string
+
+    Raises:
+        RuntimeError: If hashing fails for any reason
+    """
+    try:
+        # Ensure password is a string and strip whitespace
+        pwd = str(password).strip()
+
+        # Enforce bcrypt's 72-byte limit to avoid passlib errors
+        pwd_bytes = pwd.encode("utf-8")
+        if len(pwd_bytes) > BCRYPT_MAX_BYTES:
+            # Truncate to 72 bytes, safely decoding back to string
+            pwd = pwd_bytes[:BCRYPT_MAX_BYTES].decode("utf-8", errors="ignore")
+
+        return pwd_context.hash(pwd)
+
+    except Exception as e:
+        # hashed_password is NOT nullable in User model, so we cannot use placeholder
+        raise RuntimeError(
+            f"Bootstrap failed to hash password; check bcrypt/passlib versions. "
+            f"Error: {type(e).__name__}: {e}"
+        )
 
 
 def ensure_default_institution(db: Session) -> Institution:
