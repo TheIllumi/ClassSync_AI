@@ -12,8 +12,17 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Import our database configuration and models
-from classsync_api.config import settings
+# Get DATABASE_URL directly from environment - required for Railway
+# This is more reliable than going through settings during Alembic startup
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is not set. "
+        "For local development, set DATABASE_URL in your .env file. "
+        "For Railway, ensure PostgreSQL plugin is attached."
+    )
+
+# Import database Base for model metadata
 from classsync_api.database import Base
 
 # Import all models so Alembic can detect them
@@ -25,8 +34,8 @@ from classsync_core.models import (
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url with our settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Override sqlalchemy.url with DATABASE_URL from environment
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

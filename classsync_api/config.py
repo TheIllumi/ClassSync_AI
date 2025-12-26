@@ -3,8 +3,24 @@ Configuration management for ClassSync AI.
 Loads settings from environment variables.
 """
 
+import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+
+def get_database_url() -> str:
+    """
+    Get DATABASE_URL from environment.
+    Raises RuntimeError if not set (required for Railway deployment).
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL environment variable is not set. "
+            "For local development, create a .env file with DATABASE_URL. "
+            "For Railway, ensure PostgreSQL plugin is attached."
+        )
+    return url
 
 
 class Settings(BaseSettings):
@@ -19,8 +35,8 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     allowed_origins: str = "http://localhost:3000,http://localhost:8000"
 
-    # Database
-    database_url: str = "postgresql://user:password@localhost:5432/classsync_db"
+    # Database - NO DEFAULT, must be set via environment
+    database_url: str = ""  # Will be validated below
     database_host: str = "localhost"
     database_port: int = 5432
     database_name: str = "classsync_db"
@@ -62,8 +78,16 @@ def get_settings() -> Settings:
     """
     Get cached settings instance.
     Uses lru_cache to avoid reloading settings on every call.
+    Validates that DATABASE_URL is set.
     """
-    return Settings()
+    s = Settings()
+
+    # Validate DATABASE_URL - fail fast if not set
+    if not s.database_url:
+        # Try to get from environment directly (pydantic-settings should have done this)
+        s.database_url = get_database_url()
+
+    return s
 
 
 # Create a global settings instance for easy import
