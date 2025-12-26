@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from classsync_api.config import settings
 from classsync_api.database import SessionLocal
-from classsync_api.bootstrap import ensure_default_institution
+from classsync_api.bootstrap import bootstrap_database
 from classsync_api.routers import health, datasets, constraints, scheduler, teachers, dashboard
 
 
@@ -25,10 +25,10 @@ app = FastAPI(
 
 @app.on_event("startup")
 def startup_bootstrap():
-    """Bootstrap required data on application startup."""
+    """Bootstrap required database entities on application startup."""
     db = SessionLocal()
     try:
-        ensure_default_institution(db)
+        bootstrap_database(db)
     finally:
         db.close()
 
