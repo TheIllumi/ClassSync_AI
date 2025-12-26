@@ -3,14 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/classsync-frontend/src/pages/TimetableView.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/routers/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/datasets.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/routers/scheduler.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/exporters/xlsx_exporter.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/exporters/xlsx_exporter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/exports.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/exports.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/importers/room_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/room_importer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/optimizer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,7 +48,8 @@
     &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;experiment&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;shenanigans&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/GitHub/ClassSync_AI&quot;,
@@ -91,7 +84,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-WS-253.28294.332" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-WS-253.29346.143" />
       </set>
     </attachedChunks>
   </component>
@@ -113,6 +106,8 @@
       <workItem from="1765882326571" duration="655000" />
       <workItem from="1765894005251" duration="1252000" />
       <workItem from="1765981403595" duration="419000" />
+      <workItem from="1766391722472" duration="9607000" />
+      <workItem from="1766481648309" duration="164000" />
     </task>
     <servers />
   </component>

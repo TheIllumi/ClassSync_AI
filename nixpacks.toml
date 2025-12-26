@@ -1,0 +1,19 @@
+# Nixpacks configuration for Railway deployment
+# Builds both Python backend and React frontend
+
+[phases.setup]
+nixPkgs = ["python310", "nodejs_20"]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "cd classsync-frontend && npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd classsync-frontend && npm run build"
+]
+
+[start]
+cmd = "alembic upgrade head && gunicorn classsync_api.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT"

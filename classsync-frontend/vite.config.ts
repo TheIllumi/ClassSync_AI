@@ -10,6 +10,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Build configuration for production (served by FastAPI)
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // Generate sourcemaps for debugging
+    sourcemap: false,
+  },
+  // Development server configuration
   server: {
     port: 3000,
     proxy: {
