@@ -3,6 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +51,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;shenanigans&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/GitHub/ClassSync_AI&quot;,
@@ -84,7 +86,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-WS-253.29346.143" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.29346.142" />
+        <option value="bundled-python-sdk-f2b7a9f6281b-6e1f45a539f7-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.29346.142" />
       </set>
     </attachedChunks>
   </component>
@@ -108,6 +111,9 @@
       <workItem from="1765981403595" duration="419000" />
       <workItem from="1766391722472" duration="9607000" />
       <workItem from="1766481648309" duration="164000" />
+      <workItem from="1766734640954" duration="2661000" />
+      <workItem from="1766824691766" duration="1212000" />
+      <workItem from="1766907992999" duration="2721000" />
     </task>
     <servers />
   </component>

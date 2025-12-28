@@ -145,8 +145,8 @@ class CourseImporter(BaseImporter):
         for teacher_name in unique_teachers:
             teacher_name = str(teacher_name).strip()
 
-            if not teacher_name or teacher_name.lower() in ['', 'tba', 'tbd', 'n/a']:
-                continue
+            if not teacher_name or teacher_name.lower() == 'nan':
+                teacher_name = "TBD"
 
             # Check if teacher exists (Active only - should be NONE after clear_data)
             existing = self.db.query(Teacher).filter(
@@ -213,6 +213,10 @@ class CourseImporter(BaseImporter):
                     course_name = str(row['course_name']).strip()
                     original_section_code = str(row['section']).strip()
                     
+                    # Handle missing section
+                    if not original_section_code or original_section_code.lower() == 'nan':
+                        original_section_code = "A"
+                    
                     key = (course_name, original_section_code)
                     
                     if key in section_counts:
@@ -269,7 +273,28 @@ class CourseImporter(BaseImporter):
         # we'll use the first instructor we encounter as the "primary" teacher
         # (The real relationship is Section -> Teacher, not Course -> Teacher)
         instructor_name = str(row['instructor']).strip()
+        if not instructor_name or instructor_name.lower() == 'nan':
+            instructor_name = "TBD"
+            
         teacher_id = self.teacher_cache.get(instructor_name)
+        
+        # Fallback if teacher still not found (shouldn't happen if _import_teachers works)
+        if not teacher_id:
+            # Try to find TBD in cache
+            teacher_id = self.teacher_cache.get("TBD")
+            if not teacher_id:
+                # Last resort: Create TBD teacher on the fly
+                print("[CourseImporter] WARNING: TBD teacher missing, creating on the fly")
+                tbd_teacher = Teacher(
+                    institution_id=self.institution_id,
+                    code="TBD00",
+                    name="TBD",
+                    email="tbd@university.edu"
+                )
+                self.db.add(tbd_teacher)
+                self.db.flush()
+                self.teacher_cache["TBD"] = tbd_teacher.id
+                teacher_id = tbd_teacher.id
 
         # Determine duration and sessions based on type and hours
         if course_type == CourseType.LAB:
@@ -324,6 +349,9 @@ class CourseImporter(BaseImporter):
 
         # Get section-specific teacher
         instructor_name = str(row['instructor']).strip()
+        if not instructor_name or instructor_name.lower() == 'nan':
+            instructor_name = "TBD"
+            
         teacher_id = self.teacher_cache.get(instructor_name)
         
         # Create section

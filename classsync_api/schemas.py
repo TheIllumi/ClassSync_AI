@@ -129,11 +129,11 @@ class CourseDataRow(BaseModel):
 
     course_name: str = Field(..., min_length=1, max_length=200)
     course_code: Optional[str] = Field(None, max_length=50)
-    instructor: str = Field(..., min_length=1, max_length=100)
-    section: str = Field(..., min_length=1, max_length=50)
+    instructor: Optional[str] = Field(None, min_length=1, max_length=100)
+    section: Optional[str] = Field(None, min_length=1, max_length=50)
     program: str = Field(..., min_length=1, max_length=100)
     type: str = Field(..., pattern="^(Theory|Lab)$")
-    hours_per_week: int = Field(default=3, ge=1, le=10)
+    hours_per_week: int = Field(default=3, ge=0, le=10)
     duration_minutes: Optional[int] = Field(None, ge=30, le=300)
     sessions_per_week: Optional[int] = Field(None, ge=1, le=6)
 
