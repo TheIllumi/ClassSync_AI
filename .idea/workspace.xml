@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="7ec0305a-e158-44a3-9507-a9be091034a1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_api/schemas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" beforeDir="false" afterPath="$PROJECT_DIR$/classsync_core/importers/course_importer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,7 +111,8 @@
       <workItem from="1766481648309" duration="164000" />
       <workItem from="1766734640954" duration="2661000" />
       <workItem from="1766824691766" duration="1212000" />
-      <workItem from="1766907992999" duration="2721000" />
+      <workItem from="1766907992999" duration="3315000" />
+      <workItem from="1767072570583" duration="1383000" />
     </task>
     <servers />
   </component>
